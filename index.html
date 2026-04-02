@@ -1,0 +1,2809 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elite Tech Interview Telemetry</title>
+    <style>
+        /* ==========================================================================
+           1. DESIGN TOKENS & BASE STYLES (Obsidian Glass + Apple HIG)
+           ========================================================================== */
+        :root {
+            /* Dark Theme: Obsidian Glass */
+            --bg-base: #0B0B0F; /* Deep Obsidian */
+            --bg-surface: rgba(23, 23, 28, 0.6); /* Surface Glass */
+            --bg-surface-hover: rgba(32, 32, 38, 0.8);
+            --bg-segmented: rgba(32, 32, 38, 0.4); /* Surface Container */
+            --bg-segmented-active: rgba(94, 92, 230, 0.15); /* Indigo Glow */
+            
+            --border-subtle: rgba(255, 255, 255, 0.1);
+            --border-focus: rgba(94, 92, 230, 0.4);
+            
+            --text-primary: #FFFFFF;
+            --text-secondary: rgba(235, 235, 245, 0.6);
+            --text-muted: rgba(235, 235, 245, 0.3);
+            
+            --accent-primary: #5E5CE6; /* Electric Indigo */
+            --accent-glow: rgba(94, 92, 230, 0.25);
+            --accent-success: #5DE6FF; /* Vibrant Cyan */
+            --accent-warning: #C0C1FF; /* Royal Violet */
+            --accent-danger: #FF453A; /* Crimson Warning */
+
+            /* Typography */
+            --font-sans: '-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: 'SF Mono', 'ui-monospace', 'JetBrains Mono', Consolas, monospace;
+            
+            /* Spacing & Radii (Apple Squircles) */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+            
+            /* Transitions */
+            --transition-fast: 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+            --glass-blur: blur(40px) saturate(200%);
+            --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="light"] {
+            /* Light Theme: Clean iOS / macOS */
+            --bg-base: #F2F2F7; 
+            --bg-surface: rgba(255, 255, 255, 0.75);
+            --bg-surface-hover: rgba(255, 255, 255, 1);
+            --bg-segmented: rgba(118, 118, 128, 0.12);
+            --bg-segmented-active: #FFFFFF;
+            
+            --border-subtle: rgba(60, 60, 67, 0.1);
+            --border-focus: rgba(0, 122, 255, 0.4);
+            
+            --text-primary: #000000;
+            --text-secondary: rgba(60, 60, 67, 0.6);
+            --text-muted: rgba(60, 60, 67, 0.3);
+
+            --accent-primary: #007AFF; 
+            --accent-glow: rgba(0, 122, 255, 0.15);
+            --accent-success: #34C759; 
+            --accent-warning: #FF9500; 
+            --accent-danger: #FF3B30; 
+            
+            --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-y: scroll;
+            position: relative;
+            transition: background-color var(--transition-fast);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Ambient Glows */
+        body::before {
+            content: ''; position: fixed; top: -10%; left: -10%; width: 60vw; height: 60vh;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 60%);
+            z-index: -1; pointer-events: none;
+            opacity: 1; transition: opacity var(--transition-fast);
+        }
+        [data-theme="light"] body::before { opacity: 0; }
+
+        /* ==========================================================================
+           2. LAYOUT & ARCHITECTURE
+           ========================================================================== */
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-xl) var(--space-md);
+        }
+
+        /* Top Bar Wrapper */
+        .top-bar-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--space-md);
+            gap: var(--space-md);
+            flex-wrap: wrap;
+        }
+
+        .top-bar-center {
+            display: flex; 
+            justify-content: center;
+            flex: 1;
+            min-width: 0; /* allows flex children to shrink/scroll */
+        }
+        
+        .top-bar-right {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .theme-toggle {
+            background: var(--bg-surface);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-subtle);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: all var(--transition-fast);
+            box-shadow: var(--shadow-card);
+            flex-shrink: 0;
+        }
+        .theme-toggle:active { transform: scale(0.92); }
+
+        /* iOS Segmented Controls (Tabs) */
+        .tabs-container {
+            background: var(--bg-segmented);
+            padding: 4px;
+            border-radius: 14px;
+            display: inline-flex;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 100%;
+        }
+        .tabs-container::-webkit-scrollbar { display: none; }
+        
+        .tab-btn {
+            padding: 8px 24px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 10px;
+            border: none;
+            background: transparent;
+            transition: all var(--transition-fast);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .tab-btn:hover { color: var(--text-primary); }
+        .tab-btn.active {
+            background: var(--bg-segmented-active);
+            color: var(--text-primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .hidden { display: none !important; }
+
+        /* ==========================================================================
+           3. DASHBOARD VIEW
+           ========================================================================== */
+        #dashboardView {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-lg);
+            animation: fadeIn var(--transition-fast) ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .dash-header { margin-bottom: var(--space-xs); }
+        .dash-header h1 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            margin-bottom: var(--space-xs);
+        }
+        .dash-header h1 span { color: var(--accent-success); }
+        .dash-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 600px;
+        }
+
+        .dash-grid-top {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--space-lg);
+        }
+        .dash-grid-modules {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .dash-card {
+            background: var(--bg-surface);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: var(--space-lg);
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+        .dash-card h3 { font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+
+        /* Dashboard Overall Progress Ring */
+        .dash-circular-progress { position: relative; width: 160px; height: 160px; margin: 0 auto; }
+        .dash-circular-progress svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+        .dash-circular-progress circle { fill: none; stroke-width: 8px; }
+        .dash-ring-bg { stroke: rgba(255, 255, 255, 0.05); }
+        [data-theme="light"] .dash-ring-bg { stroke: rgba(0, 0, 0, 0.06); }
+        .dash-ring-fill {
+            stroke: var(--accent-primary);
+            stroke-linecap: round;
+            stroke-dasharray: 264;
+            stroke-dashoffset: 264;
+            transition: stroke-dashoffset 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+            filter: drop-shadow(0 0 8px var(--accent-glow));
+        }
+
+        .dash-progress-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .dash-percent-container { font-size: 2.5rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: baseline; line-height: 1; letter-spacing: -0.02em; }
+        .dash-percent-sign { font-size: 1.2rem; color: var(--text-secondary); margin-left: 2px; font-weight: 600; }
+        .dash-complete-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-secondary); margin-top: 6px; }
+
+        /* Module Dashboard Cards */
+        .module-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-md); }
+        .module-icon {
+            width: 44px; height: 44px; border-radius: 12px; background: var(--bg-segmented);
+            display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+        }
+        .module-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; color: var(--text-primary); }
+        .module-desc { font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 0; flex: 1; line-height: 1.4; }
+        
+        /* Module Circular Progress */
+        .module-circular-progress { position: relative; width: 64px; height: 64px; }
+        .module-circular-progress svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+        .module-circular-progress circle { fill: none; stroke-width: 5px; }
+        .module-ring-fill { stroke-linecap: round; stroke-dasharray: 176; stroke-dashoffset: 176; transition: stroke-dashoffset 1s cubic-bezier(0.2, 0.8, 0.2, 1); } /* r=28, c=176 */
+        .module-percent-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.9rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); }
+        
+        .stroke-dsa { stroke: var(--accent-warning); filter: drop-shadow(0 0 6px rgba(192, 193, 255, 0.3)); }
+        .stroke-sd { stroke: var(--accent-success); filter: drop-shadow(0 0 6px rgba(93, 230, 255, 0.3)); }
+        .stroke-sql { stroke: var(--accent-danger); filter: drop-shadow(0 0 6px rgba(255, 69, 58, 0.3)); }
+
+        /* Predictive Readiness Heatmap Cards */
+        .readiness-card {
+            background: var(--bg-segmented);
+            padding: 16px 20px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .readiness-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .readiness-track {
+            height: 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            width: 100%;
+        }
+        .readiness-fill {
+            height: 100%;
+            transition: width 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        /* ==========================================================================
+           4. MODULE VIEW (Tables & Toolbar)
+           ========================================================================== */
+        .header {
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: var(--space-md);
+            margin-bottom: var(--space-md);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: var(--space-md);
+            flex-wrap: wrap;
+        }
+
+        .header-titles {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .header-titles h1 {
+            font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            margin-bottom: var(--space-xs);
+        }
+        .header-titles p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            max-width: 600px;
+            font-weight: 400;
+        }
+
+        .sub-tabs-wrapper { margin-bottom: var(--space-lg); display: flex; justify-content: center; width: 100%; overflow-x: auto; }
+        .sub-tabs-container {
+            display: inline-flex; gap: var(--space-xs); overflow-x: auto; white-space: nowrap; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .sub-tabs-container::-webkit-scrollbar { display: none; }
+        .sub-tab-btn {
+            padding: 6px 16px; border-radius: 999px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all var(--transition-fast); flex-shrink: 0;
+        }
+        .sub-tab-btn:hover { background: var(--bg-segmented); color: var(--text-primary); }
+        .sub-tab-btn.active { background: var(--text-primary); color: var(--bg-base); border-color: var(--text-primary); font-weight: 600; }
+
+        /* Momentum Progress inside Header */
+        .momentum-card-mini {
+            background: var(--bg-surface); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); padding: 16px 24px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-card); flex-shrink: 0;
+        }
+        .difficulty-stats { display: flex; flex-direction: column; gap: 8px; padding-right: 20px; border-right: 1px solid var(--border-subtle); margin-right: 4px; }
+        .diff-stat { display: flex; justify-content: space-between; gap: 24px; align-items: center; font-family: var(--font-mono); font-size: 0.9rem; }
+        .diff-label { font-weight: 700; font-family: var(--font-sans); }
+        .easy-text { color: var(--accent-success); }
+        .med-text { color: var(--accent-warning); }
+        .hard-text { color: var(--accent-danger); }
+        .diff-val { color: var(--text-primary); font-weight: 500; }
+
+        .mini-circular-progress { position: relative; width: 84px; height: 84px; display: flex; align-items: center; justify-content: center;}
+        .mini-circular-progress svg { position: absolute; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+        .mini-circular-progress circle { fill: none; stroke-width: 6px; }
+        
+        .ring-segment { fill: none; stroke-width: 6px; stroke-linecap: round; transition: stroke-dasharray 0.8s, stroke-dashoffset 0.8s; }
+        .stroke-dsa-easy { stroke: var(--accent-success); filter: drop-shadow(0 0 4px rgba(93, 230, 255, 0.4)); }
+        .stroke-dsa-med { stroke: var(--accent-warning); filter: drop-shadow(0 0 4px rgba(192, 193, 255, 0.4)); }
+        .stroke-dsa-hard { stroke: var(--accent-danger); filter: drop-shadow(0 0 4px rgba(255, 69, 58, 0.4)); }
+
+        .mini-progress-text { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .mini-percent { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-sans); line-height: 1; letter-spacing: -0.02em; display:flex; align-items:baseline; }
+        .mini-percent span { font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; margin-left: 2px;}
+        .mini-label { font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; font-weight: 700;}
+
+        /* Super Responsive Toolbar (Single Line Configuration) */
+        .toolbar {
+            display: flex; 
+            flex-wrap: nowrap; 
+            gap: var(--space-md); 
+            margin-bottom: var(--space-lg); 
+            background: var(--bg-surface); 
+            backdrop-filter: var(--glass-blur); 
+            -webkit-backdrop-filter: var(--glass-blur); 
+            padding: 12px var(--space-md); 
+            border-radius: var(--radius-lg); 
+            border: 1px solid var(--border-subtle); 
+            align-items: center; 
+            justify-content: space-between; 
+            box-shadow: var(--shadow-card);
+            overflow-x: auto; /* Allows horizontal swipe on mobile */
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .toolbar::-webkit-scrollbar { display: none; }
+        
+        .toolbar-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            flex-shrink: 0; /* Prevents squishing */
+        }
+        .toolbar-item label { 
+            color: var(--text-secondary); 
+            font-size: 0.85rem; 
+            white-space: nowrap; 
+            font-weight: 500;
+        }
+        .toolbar-search { 
+            flex-grow: 1; 
+            min-width: 220px; 
+        }
+        .toolbar-actions { 
+            display: flex; 
+            gap: 8px; 
+            margin-left: auto; 
+        }
+        #standardFilters {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: var(--space-md);
+            align-items: center;
+        }
+
+        input[type="text"], select, textarea {
+            -webkit-appearance: none; appearance: none; background: var(--bg-segmented); border: 1px solid transparent; color: var(--text-primary); padding: 10px 16px; border-radius: var(--radius-md); font-family: var(--font-sans); font-size: 0.95rem; transition: all var(--transition-fast); outline: none; width: 100%; resize: vertical;
+        }
+        input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--border-focus); background: var(--bg-base); box-shadow: 0 0 0 4px var(--accent-glow); }
+        .toolbar-search input[type="text"] { min-width: 100%; }
+        select { padding-right: 32px; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 16px; cursor: pointer; }
+        [data-theme="light"] select { background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
+
+        button { background: var(--bg-segmented); color: var(--text-primary); border: none; padding: 10px 18px; border-radius: var(--radius-md); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all var(--transition-fast); display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        button:active { transform: scale(0.96); }
+        button:hover { background: var(--bg-surface-hover); }
+
+        .ai-btn { background: linear-gradient(135deg, rgba(94, 92, 230, 0.15), rgba(93, 230, 255, 0.15)); border: 1px solid rgba(94, 92, 230, 0.4); color: var(--accent-primary); box-shadow: 0 2px 10px var(--accent-glow); }
+        [data-theme="light"] .ai-btn { background: linear-gradient(135deg, rgba(0, 122, 255, 0.1), rgba(52, 199, 89, 0.1)); border-color: rgba(0, 122, 255, 0.3); }
+        .ai-btn:hover { background: var(--accent-primary); color: #ffffff; box-shadow: 0 4px 16px var(--accent-glow); }
+        .ai-btn-small { padding: 6px 12px; font-size: 0.85rem; border-radius: 999px; }
+
+        /* RPG Skill Tree Styles (Responsive) */
+        .tree-container {
+            position: relative; width: 100%; overflow-x: auto; padding: 40px 20px;
+            background: rgba(0,0,0,0.1); border-radius: var(--radius-xl); border: 1px solid var(--border-subtle);
+            -webkit-overflow-scrolling: touch;
+        }
+        .tree-scroll-wrapper {
+            position: relative;
+            min-width: 1000px; /* Forces tree layout integrity on mobile */
+            min-height: 500px;
+            margin: 0 auto;
+        }
+        #treeSvg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+        .tree-tier { display: flex; justify-content: center; gap: clamp(30px, 5vw, 80px); margin-bottom: 80px; position: relative; z-index: 2; flex-wrap: nowrap; }
+        
+        .skill-node {
+            position: relative; width: 120px; height: 120px; border-radius: 50%;
+            background: var(--bg-surface); border: 3px solid var(--border-subtle);
+            backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: all var(--transition-fast); z-index: 2;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); flex-shrink: 0;
+        }
+        .skill-node:hover { transform: scale(1.05); }
+        .skill-node.locked { opacity: 0.6; cursor: not-allowed; filter: grayscale(100%); border-color: rgba(255,255,255,0.05); }
+        .skill-node.locked:hover { transform: none; }
+        .skill-node.unlocked { border-color: var(--accent-primary); box-shadow: 0 0 20px var(--accent-glow), inset 0 0 15px var(--accent-glow); }
+        .skill-node.mastered { border-color: var(--accent-success); box-shadow: 0 0 20px rgba(93, 230, 255, 0.2), inset 0 0 15px rgba(93, 230, 255, 0.2); }
+        
+        .node-icon { font-size: 1.8rem; margin-bottom: 4px; }
+        .node-title { font-size: 0.7rem; font-weight: 600; text-align: center; line-height: 1.1; margin-bottom: 4px; padding: 0 8px; color: var(--text-primary); }
+        .node-pct { font-size: 0.85rem; font-family: var(--font-mono); font-weight: 700; color: var(--text-secondary); }
+        .skill-node.mastered .node-pct { color: var(--accent-success); }
+        .node-lock { position: absolute; top: -5px; right: -5px; background: var(--bg-base); border-radius: 50%; padding: 4px; font-size: 0.9rem; border: 1px solid var(--border-subtle); }
+
+        /* Tables & Grid */
+        .group-container { margin-bottom: var(--space-md); background: var(--bg-surface); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-card); transition: all var(--transition-fast); }
+        details > summary { list-style: none; padding: 18px var(--space-lg); cursor: pointer; font-weight: 600; font-size: 1.15rem; background: transparent; display: flex; align-items: center; justify-content: space-between; transition: background var(--transition-fast); }
+        details > summary::-webkit-details-marker { display: none; }
+        details > summary:hover { background: var(--bg-segmented); }
+        details > summary::after { content: '↓'; font-family: var(--font-mono); color: var(--text-muted); transition: transform var(--transition-fast); }
+        details[open] > summary::after { transform: rotate(180deg); }
+
+        .sub-group { border-top: 1px solid var(--border-subtle); }
+        .sub-group h4 { padding: 12px var(--space-lg); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); background: var(--bg-segmented); border-bottom: 1px solid var(--border-subtle); }
+
+        .data-table-wrapper { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
+        th, td { padding: 14px var(--space-lg); border-bottom: 1px solid var(--border-subtle); white-space: nowrap; vertical-align: middle; }
+        th { font-weight: 600; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; background: var(--bg-surface); position: sticky; top: 0; z-index: 10; backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); }
+        tbody tr { transition: background var(--transition-fast); }
+        tbody tr:hover { background: var(--bg-segmented); }
+        tbody tr:last-child td { border-bottom: none; }
+
+        .row-completed { opacity: 0.5; }
+        .row-completed .q-link { text-decoration: line-through; color: var(--text-secondary); }
+        
+        .status-checkbox { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border: 2px solid var(--border-subtle); border-radius: 6px; outline: none; cursor: pointer; transition: all var(--transition-fast); position: relative; background: rgba(0,0,0,0.2); margin: 0; padding: 0; flex-shrink:0; }
+        .status-checkbox:checked { background-color: var(--accent-success); border-color: var(--accent-success); }
+        .status-checkbox:checked::after { content: ''; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+
+        .q-link { color: var(--text-primary); text-decoration: none; font-weight: 500; transition: color var(--transition-fast); }
+        .q-link:hover { color: var(--accent-primary); text-decoration: underline; }
+
+        .badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+        .badge.easy { background: rgba(93, 230, 255, 0.15); color: var(--accent-success); border: 1px solid rgba(93, 230, 255, 0.2); }
+        .badge.medium { background: rgba(192, 193, 255, 0.15); color: var(--accent-warning); border: 1px solid rgba(192, 193, 255, 0.2); }
+        .badge.hard { background: rgba(255, 69, 58, 0.15); color: var(--accent-danger); border: 1px solid rgba(255, 69, 58, 0.2); }
+
+        .company-tag { background: var(--bg-segmented); border: 1px solid var(--border-subtle); padding: 4px 10px; border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-primary); margin-right: 6px; margin-bottom: 6px; display: inline-block; white-space: nowrap; }
+
+        .metric-bar-container { width: 80px; height: 6px; background: var(--bg-segmented); border-radius: 999px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 10px; }
+        .metric-bar-fill { height: 100%; border-radius: 999px; }
+        .metric-value { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+        .empty-state { padding: var(--space-xl); text-align: center; color: var(--text-secondary); background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px solid var(--border-subtle); }
+
+        /* Behavioral / STAR Architect Grid */
+        .star-architect-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: var(--space-lg); }
+        .form-group { margin-bottom: var(--space-md); }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .star-output-panel { height: 100%; min-height: 500px; max-height: 800px; overflow-y: auto; display: flex; flex-direction: column; }
+
+        /* Pre-Flight Brief Output */
+        .preflight-output {
+            background: rgba(0,0,0,0.2); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-lg); min-height: 400px; overflow-y: auto; display: none; color: var(--text-primary); line-height: 1.6;
+        }
+        [data-theme="light"] .preflight-output { background: rgba(255,255,255,0.5); }
+        .preflight-output h3 { color: var(--accent-primary); margin-top: 1.5em; margin-bottom: 0.5em; }
+        .preflight-output h4 { color: var(--accent-success); margin-top: 1em; margin-bottom: 0.5em; }
+        .preflight-output ul { margin-left: 1.5em; margin-bottom: 1em; }
+        .preflight-output li { margin-bottom: 0.5em; }
+
+        /* Modal Overlay */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity var(--transition-fast); padding: 16px; }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .modal-content { background: var(--bg-surface); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--border-subtle); border-radius: 20px; width: 100%; max-width: 650px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 24px 48px rgba(0,0,0,0.4); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); margin: 0 auto; }
+        [data-theme="light"] .modal-content { background: rgba(255,255,255,0.85); box-shadow: 0 24px 48px rgba(0,0,0,0.15); }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        .modal-header { padding: 20px var(--space-lg); border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .modal-header h2 { font-size: 1.3rem; display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: -0.02em; }
+        .close-btn { background: var(--bg-segmented); border: none; color: var(--text-secondary); font-size: 1.2rem; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; flex-shrink: 0; }
+        .close-btn:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+        .modal-body { padding: var(--space-lg); overflow-y: auto; font-size: 1rem; line-height: 1.6; color: var(--text-primary); flex: 1; }
+        .modal-body p { margin-bottom: 1em; }
+        .modal-body strong { color: var(--text-primary); font-weight: 600; }
+        .modal-body ul { margin-left: 1.5em; margin-bottom: 1em; }
+        .modal-body li { margin-bottom: 0.5em; }
+        .modal-content.large-modal { max-width: 1000px; width: 100%; }
+
+        .loader { display: none; text-align: center; padding: var(--space-xl); color: var(--text-secondary); font-family: var(--font-mono); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+        /* ==========================================================================
+           MEDIA QUERIES (Super Responsive Setup)
+           ========================================================================== */
+        
+        /* Tablet / iPad Landscape */
+        @media (max-width: 1024px) {
+            .app-container { padding: var(--space-lg) var(--space-md); }
+            .dash-grid-top, .dash-grid-modules { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+            .star-architect-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* iPad Portrait / Mobile Landscape */
+        @media (max-width: 768px) {
+            .app-container { padding: var(--space-md); }
+            
+            /* Responsive Navigation/Top Bar */
+            .top-bar-wrapper { 
+                display: flex; flex-direction: row; justify-content: space-between; flex-wrap: wrap; gap: var(--space-sm);
+            }
+            .top-bar-left { display: none; }
+            .top-bar-center { width: 100%; order: 2; margin-top: var(--space-xs); }
+            .tabs-container { width: 100%; justify-content: flex-start; }
+            .top-bar-right { margin-left: auto; order: 1; }
+            
+            /* Headers & Trackers */
+            .header-top { flex-direction: column; align-items: stretch; gap: var(--space-md); }
+            .dash-header h1, .header-titles h1 { font-size: 2rem; }
+            
+            .momentum-card-mini { flex-wrap: nowrap; justify-content: center; text-align: left; width: 100%; margin-top: var(--space-md); flex-direction: row; padding: 16px; gap: 16px;}
+            .difficulty-stats { padding-right: 12px; margin-right: 0; }
+            .diff-stat { gap: 12px; font-size: 0.8rem; }
+            
+            /* Modals & Tables */
+            td:nth-child(2) { white-space: normal; min-width: 250px; }
+            th, td { padding: 12px 10px; font-size: 0.85rem; }
+            
+            .star-architect-grid { grid-template-columns: 1fr; }
+            .star-output-panel { min-height: 400px; }
+        }
+
+        /* Mobile Portrait */
+        @media (max-width: 600px) {
+            /* Force Single Column on Smaller Screens */
+            .dash-grid-top, .dash-grid-modules { grid-template-columns: 1fr; }
+            .dash-card { padding: var(--space-md); }
+            
+            .toolbar-item label { display: none; } /* Hide labels to save space */
+            
+            .dash-circular-progress { width: 120px; height: 120px; }
+            .dash-percent-container { font-size: 2rem; }
+            .momentum-card-mini { flex-direction: column; align-items: stretch; border-radius: var(--radius-lg); gap: 12px; }
+            .difficulty-stats { border-right: none; padding-right: 0; border-bottom: 1px solid var(--border-subtle); padding-bottom: 16px; margin-bottom: 4px; }
+        }
+
+        @media (max-width: 480px) {
+            .dash-header h1, .header-titles h1 { font-size: 1.8rem; }
+            td:nth-child(2) { min-width: 180px; }
+            .metric-bar-container { display: none; }
+            .metric-value { font-weight: 600; }
+            .momentum-card { min-width: unset; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <!-- Top Bar: Navigation Tabs & Theme Toggle -->
+    <div class="top-bar-wrapper">
+        <div class="top-bar-left"></div>
+        
+        <div class="top-bar-center">
+            <div class="tabs-container" role="tablist">
+                <button class="tab-btn active" id="tabDashboard" role="tab" onclick="switchMainTab('dashboard')">Dashboard</button>
+                <button class="tab-btn" id="tabDSA" role="tab" onclick="switchMainTab('dsa')">Data Structures & Algorithms</button>
+                <button class="tab-btn" id="tabSD" role="tab" onclick="switchMainTab('sd')">System Design</button>
+                <button class="tab-btn" id="tabSQL" role="tab" onclick="switchMainTab('sql')">SQL</button>
+                <button class="tab-btn" id="tabBehavioral" role="tab" onclick="switchMainTab('behavioral')">Behavioral (STAR)</button>
+            </div>
+        </div>
+
+        <div class="top-bar-right">
+            <button id="settingsBtn" aria-label="Settings" class="theme-toggle" style="margin-right: 8px; font-size: 1.1rem;">⚙️</button>
+            <button id="themeToggleBtn" aria-label="Toggle Theme" class="theme-toggle">☀️</button>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         DASHBOARD OVERVIEW SECTION
+         ========================================================= -->
+    <div id="dashboardView">
+        <div class="dash-header">
+            <h1>Welcome back, <span>Architect</span></h1>
+            <p>Your architecture review is trending upwards. Keep the momentum going across all modules.</p>
+        </div>
+        
+        <div class="dash-grid-top">
+            <!-- Overall Momentum Card -->
+            <div class="dash-card" style="align-items: center; justify-content: center; gap: 24px;">
+                <h3 style="align-self: flex-start; width: 100%;">Daily Progress</h3>
+                <div class="dash-circular-progress">
+                    <svg viewBox="0 0 100 100">
+                        <circle class="dash-ring-bg" cx="50" cy="50" r="42"></circle>
+                        <circle class="dash-ring-fill" id="dashOverallRing" cx="50" cy="50" r="42"></circle>
+                    </svg>
+                    <div class="dash-progress-text">
+                        <div class="dash-percent-container">
+                            <span id="dashOverallPercent">0</span><span class="dash-percent-sign">%</span>
+                        </div>
+                        <span class="dash-complete-label">COMPLETE</span>
+                    </div>
+                </div>
+                <div style="display: flex; width: 100%; justify-content: space-between; margin-top: 8px;">
+                    <div><span style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.1em; font-weight:700;">Streak</span><br><strong style="color:var(--accent-success);">14 Days</strong></div>
+                    <div style="text-align:right;"><span style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.1em; font-weight:700;">Points</span><br><strong style="color:var(--accent-warning);">2,450</strong></div>
+                </div>
+            </div>
+
+            <!-- Data Structures Card -->
+            <div class="dash-card">
+                <div class="module-card-header">
+                    <div class="module-icon">🧩</div>
+                    <div class="module-circular-progress">
+                        <svg viewBox="0 0 64 64">
+                            <circle class="dash-ring-bg" cx="32" cy="32" r="28"></circle>
+                            <circle class="module-ring-fill stroke-dsa" id="dashDsaRing" cx="32" cy="32" r="28"></circle>
+                        </svg>
+                        <span class="module-percent-text" id="dashDsaPercentText">0%</span>
+                    </div>
+                </div>
+                <div class="module-title">Data Structures</div>
+                <div class="module-desc">Master Graphs, Trees, and DP with advanced optimization techniques.</div>
+            </div>
+        </div>
+
+        <div class="dash-grid-modules">
+            <!-- System Design Card -->
+            <div class="dash-card">
+                <div class="module-card-header">
+                    <div class="module-icon">🏗️</div>
+                    <div class="module-circular-progress">
+                        <svg viewBox="0 0 64 64">
+                            <circle class="dash-ring-bg" cx="32" cy="32" r="28"></circle>
+                            <circle class="module-ring-fill stroke-sd" id="dashSdRing" cx="32" cy="32" r="28"></circle>
+                        </svg>
+                        <span class="module-percent-text" id="dashSdPercentText">0%</span>
+                    </div>
+                </div>
+                <div class="module-title">System Design</div>
+                <div class="module-desc">Scale applications using microservices, load balancing, and sharding.</div>
+            </div>
+
+            <!-- SQL Card -->
+            <div class="dash-card">
+                <div class="module-card-header">
+                    <div class="module-icon">🗄️</div>
+                    <div class="module-circular-progress">
+                        <svg viewBox="0 0 64 64">
+                            <circle class="dash-ring-bg" cx="32" cy="32" r="28"></circle>
+                            <circle class="module-ring-fill stroke-sql" id="dashSqlRing" cx="32" cy="32" r="28"></circle>
+                        </svg>
+                        <span class="module-percent-text" id="dashSqlPercentText">0%</span>
+                    </div>
+                </div>
+                <div class="module-title">SQL & Databases</div>
+                <div class="module-desc">Deep dive into ACID properties, indexing strategies, and query tuning.</div>
+            </div>
+
+            <!-- Behavioral Architect Card -->
+            <div class="dash-card">
+                <div class="module-card-header">
+                    <div class="module-icon">🗣️</div>
+                    <div class="module-badge" style="background: rgba(94, 92, 230, 0.15); color: var(--accent-primary); border: 1px solid rgba(94,92,230,0.3);">AI ARCHITECT</div>
+                </div>
+                <div class="module-title">Behavioral (STAR)</div>
+                <div class="module-desc">Craft perfect STAR stories and evaluate against FAANG leadership principles.</div>
+                <button class="ai-btn" style="width: 100%; justify-content: center; margin-top: auto;" onclick="switchMainTab('behavioral')">Open Architect</button>
+            </div>
+        </div>
+
+        <!-- Predictive "Interview Readiness" Heatmap -->
+        <div class="dash-card" style="margin-top: var(--space-xs);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-md); flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <h3 style="margin-bottom: 0;">Predictive Interview Readiness</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 4px;">Statistical readiness mapped against real-world company data and interview probabilities.</p>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <div class="module-badge" style="background: rgba(93, 230, 255, 0.15); color: var(--accent-success); border: 1px solid rgba(93, 230, 255, 0.3);">DATA-DRIVEN</div>
+                    <button id="openPreFlightBtn" class="ai-btn" style="padding: 6px 12px; font-size: 0.85rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><path d="M22 2L11 13"></path><path d="M22 2l-7 20-4-9-9-4 20-7z"></path></svg> Pre-Flight Brief</button>
+                </div>
+            </div>
+            <div id="readinessHeatmapContainer" style="display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                <!-- Heatmap populated by JS -->
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         MODULE VIEW SECTION (Tables, Skill Tree & Toolbar)
+         ========================================================= -->
+    <div id="moduleView" class="hidden">
+        
+        <!-- Sub-Tabs Layer -->
+        <div class="sub-tabs-wrapper">
+            <div class="sub-tabs-container hidden" id="subTabsSD">
+                <button class="sub-tab-btn active" id="subTabHLD" onclick="switchSubTab('hld')">High-Level Design</button>
+                <button class="sub-tab-btn" id="subTabLLD" onclick="switchSubTab('lld')">Low-Level Design</button>
+            </div>
+            <div class="sub-tabs-container hidden" id="subTabsSQL">
+                <button class="sub-tab-btn active" id="subTabTopSql" onclick="switchSqlSubTab('topSql')">Top SQL Questions</button>
+                <button class="sub-tab-btn" id="subTabDbTheory" onclick="switchSqlSubTab('dbTheory')">Database Theory</button>
+            </div>
+        </div>
+
+        <header class="header">
+            <div class="header-top">
+                <div class="header-titles">
+                    <h1 id="mainModuleTitle">DSA Mastery</h1>
+                    <p id="mainModuleDesc">Telemetry and ROI tracking for elite technical interview patterns.</p>
+                </div>
+                
+                <div class="momentum-card-mini">
+                    <div class="difficulty-stats" id="difficultyStats">
+                        <div class="diff-stat"><span class="diff-label easy-text">Easy</span> <span class="diff-val" id="statEasy">0/0</span></div>
+                        <div class="diff-stat"><span class="diff-label med-text">Med</span> <span class="diff-val" id="statMed">0/0</span></div>
+                        <div class="diff-stat"><span class="diff-label hard-text">Hard</span> <span class="diff-val" id="statHard">0/0</span></div>
+                    </div>
+                    <div class="mini-circular-progress">
+                        <svg viewBox="0 0 76 76">
+                            <circle class="dash-ring-bg" cx="38" cy="38" r="32"></circle>
+                            <!-- Segmented Progress Rings -->
+                            <circle class="ring-segment stroke-dsa-easy" id="ringEasy" cx="38" cy="38" r="32"></circle>
+                            <circle class="ring-segment stroke-dsa-med" id="ringMed" cx="38" cy="38" r="32"></circle>
+                            <circle class="ring-segment stroke-dsa-hard" id="ringHard" cx="38" cy="38" r="32"></circle>
+                        </svg>
+                        <div class="mini-progress-text">
+                            <span class="mini-percent" id="progressPercent">0<span>/0</span></span>
+                            <span class="mini-label">Solved</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="toolbar" role="toolbar" aria-label="Data controls">
+            <!-- Search -->
+            <div class="toolbar-item toolbar-search">
+                <input type="text" id="searchInput" placeholder="Search questions, patterns..." aria-label="Search">
+            </div>
+            
+            <!-- View Mode Toggle -->
+            <div class="toolbar-item" id="viewModeWrapper">
+                <label>View:</label>
+                <div class="tabs-container" style="padding: 2px; border-radius: 8px; box-shadow: none;">
+                    <button class="tab-btn active" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 6px;" id="viewTreeBtn" onclick="switchViewMode('tree')">🌲 Skill Tree</button>
+                    <button class="tab-btn" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 6px;" id="viewListBtn" onclick="switchViewMode('list')">📋 List</button>
+                </div>
+            </div>
+
+            <!-- Standard Filters (Group & Sort) -->
+            <div id="standardFilters">
+                <div class="toolbar-item">
+                    <label for="groupBySelect">Group By:</label>
+                    <select id="groupBySelect" aria-label="Group Data By">
+                        <option value="pattern">Topic Pattern</option>
+                        <option value="company">Target Company</option>
+                    </select>
+                </div>
+
+                <div class="toolbar-item">
+                    <label for="sortBySelect">Sort By:</label>
+                    <select id="sortBySelect" aria-label="Sort Data By">
+                        <option value="default">Optimal Path</option>
+                        <option value="prob-desc">Probability</option>
+                        <option value="pop-desc">Popularity</option>
+                        <option value="diff-asc">Difficulty</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="toolbar-item toolbar-actions">
+                <button id="exportBtn" aria-label="Export to CSV">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    CSV
+                </button>
+                <button id="aiBlindspotBtn" class="ai-btn" aria-label="Target Blindspots">
+                    🎯 Blindspots
+                </button>
+                <button id="aiStudyPlanBtn" class="ai-btn" aria-label="Generate AI Study Plan">
+                    ✨ Plan
+                </button>
+            </div>
+        </div>
+
+        <!-- Replaces standard list when in Tree View -->
+        <div id="treeCanvas" class="hidden"></div>
+
+        <main id="dataCanvas" aria-live="polite"></main>
+    </div>
+
+    <!-- =========================================================
+         BEHAVIORAL VIEW SECTION (STAR Architect)
+         ========================================================= -->
+    <div id="behavioralView" class="hidden">
+        <header class="header">
+            <div class="header-top">
+                <div class="header-titles">
+                    <h1>STAR Story Architect</h1>
+                    <p>Transform raw project notes into FAANG-ready behavioral answers evaluated against core leadership principles.</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="star-architect-grid">
+            <!-- Left: Input Form -->
+            <div class="dash-card">
+                <h3 style="margin-bottom: 24px;">Draft Your Story</h3>
+                <div class="form-group">
+                    <label>Interview Question / Topic</label>
+                    <input type="text" id="starQuestion" placeholder="e.g., Tell me about a time you failed...">
+                </div>
+                <div class="form-group">
+                    <label>Target Framework</label>
+                    <select id="starFramework" style="width: 100%;">
+                        <option value="Amazon Leadership Principles">Amazon (16 Leadership Principles)</option>
+                        <option value="Google Googliness">Google (Googliness & Leadership)</option>
+                        <option value="Meta Core Values">Meta (Core Values)</option>
+                        <option value="General FAANG">General FAANG</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Raw Notes (Situation, Task, Action, Result)</label>
+                    <textarea id="starNotes" rows="8" placeholder="Bullet points about what happened, what you did, and the impact..."></textarea>
+                </div>
+                <button id="generateStarBtn" class="ai-btn" style="width: 100%; justify-content: center; margin-top: 12px; padding: 12px;">
+                    ✨ Generate STAR Story
+                </button>
+            </div>
+
+            <!-- Right: AI Output -->
+            <div class="dash-card star-output-panel">
+                <h3 style="margin-bottom: 16px;">AI Evaluation & Output</h3>
+                <div id="starLoader" class="loader" style="display:none; margin: auto;">Architecting your story...</div>
+                <div id="starOutputContent" style="height: 100%; display: flex; flex-direction: column;">
+                    <div class="empty-state" style="margin: auto; border: none; background: transparent;">
+                        Input your notes on the left to generate a structured, optimized behavioral response.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2>⚙️ Data & Settings</h2>
+            <button class="close-btn" id="closeSettingsBtn">&times;</button>
+        </div>
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 20px;">
+            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0;">Your progress is securely saved in your browser's local web storage. Use these tools to back up your progress or restore it on another device.</p>
+            
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button id="exportProgressBtn" style="background: var(--accent-primary); color: #fff; border-color: var(--accent-primary);">💾 Export Backup</button>
+                <input type="file" id="importProgressFile" style="display: none;" accept=".json">
+                <button id="importProgressBtn">📂 Import Backup</button>
+                <button id="resetProgressBtn" style="background: rgba(255, 69, 58, 0.1); color: var(--accent-danger); border-color: rgba(255, 69, 58, 0.3);">🗑️ Reset Progress</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pre-Flight Brief Modal -->
+<div class="modal-overlay" id="preFlightModal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 style="display: flex; align-items: center; gap: 8px;">🛫 Day-Of Pre-Flight Brief</h2>
+            <button class="close-btn" id="closePreFlightModalBtn">&times;</button>
+        </div>
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0;">Generate a highly actionable cheat sheet for your final 48-hours of prep. The AI analyzes your completed patterns and maps them to your target company's standard loop expectations.</p>
+            
+            <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 8px;">Select Target Company</label>
+                    <select id="preFlightCompany">
+                        <option value="Amazon">Amazon</option>
+                        <option value="Google">Google</option>
+                        <option value="Meta">Meta</option>
+                        <option value="Microsoft">Microsoft</option>
+                        <option value="Apple">Apple</option>
+                    </select>
+                </div>
+                <button id="generateBriefBtn" class="ai-btn" style="padding: 10px 24px; height: 42px; display: flex; align-items: center; justify-content: center; min-width: 140px;">✨ Generate</button>
+                <button id="printBriefBtn" class="tab-btn active" style="padding: 10px 24px; height: 42px; display: none; align-items: center; justify-content: center;">🖨️ Print PDF</button>
+            </div>
+
+            <div id="preFlightLoader" class="loader" style="display: none; padding: 40px 0;">Analyzing telemetry and compiling brief...</div>
+            <div id="preFlightOutput" class="preflight-output"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Encounter / Topic Questions Modal -->
+<div class="modal-overlay" id="topicModal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 id="topicModalTitle">Encounter</h2>
+            <button class="close-btn" id="closeTopicModalBtn">&times;</button>
+        </div>
+        <div class="modal-body" id="topicModalBody" style="padding: 0;">
+            <!-- Generated table goes here -->
+        </div>
+    </div>
+</div>
+
+<!-- AI Modal -->
+<div class="modal-overlay" id="aiModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="aiModalTitle">✨ AI Assistant</h2>
+            <button class="close-btn" id="closeModalBtn">&times;</button>
+        </div>
+        <div id="aiLoader" class="loader">Communicating with Gemini...</div>
+        <div class="modal-body" id="aiModalBody"></div>
+    </div>
+</div>
+
+<script>
+/**
+ * ============================================================================
+ * ELITE DATASETS (JSON STRUCTURES)
+ * ============================================================================
+ */
+const db = [
+    {
+        pattern: "Arrays & Hashing",
+        subPatterns: [
+            {
+                name: "Hashing Fundamentals",
+                questions: [
+                    { id: "q1", title: "Contains Duplicate", url: "https://leetcode.com/problems/contains-duplicate/", diff: "Easy", pop: 9.5, prob: 85, companies: ["Amazon", "Apple", "Google"] },
+                    { id: "q2", title: "Valid Anagram", url: "https://leetcode.com/problems/valid-anagram/", diff: "Easy", pop: 9.2, prob: 80, companies: ["Google", "Bloomberg", "Amazon"] },
+                    { id: "q3", title: "Two Sum", url: "https://leetcode.com/problems/two-sum/", diff: "Easy", pop: 10.0, prob: 95, companies: ["Amazon", "Meta", "Google", "Microsoft"] },
+                    { id: "q4", title: "Group Anagrams", url: "https://leetcode.com/problems/group-anagrams/", diff: "Medium", pop: 9.8, prob: 92, companies: ["Amazon", "Microsoft", "Meta"] },
+                    { id: "q5", title: "Top K Frequent Elements", url: "https://leetcode.com/problems/top-k-frequent-elements/", diff: "Medium", pop: 9.6, prob: 88, companies: ["Meta", "Amazon", "Google"] },
+                    { id: "top100_1", title: "Subarray Sum Equals K", url: "https://leetcode.com/problems/subarray-sum-equals-k/", diff: "Medium", pop: 9.8, prob: 90, companies: ["Meta", "Amazon", "Google"] },
+                    { id: "top150_6", title: "Isomorphic Strings", url: "https://leetcode.com/problems/isomorphic-strings/", diff: "Easy", pop: 8.2, prob: 70, companies: ["LinkedIn", "Amazon"] },
+                    { id: "top150_7", title: "Contains Duplicate II", url: "https://leetcode.com/problems/contains-duplicate-ii/", diff: "Easy", pop: 7.8, prob: 65, companies: ["Amazon", "Google"] }
+                ]
+            },
+            {
+                name: "Array Transformations",
+                questions: [
+                    { id: "q6", title: "Product of Array Except Self", url: "https://leetcode.com/problems/product-of-array-except-self/", diff: "Medium", pop: 9.7, prob: 90, companies: ["Amazon", "Microsoft", "Apple"] },
+                    { id: "q7", title: "Valid Sudoku", url: "https://leetcode.com/problems/valid-sudoku/", diff: "Medium", pop: 8.5, prob: 70, companies: ["Amazon", "Uber"] },
+                    { id: "q8", title: "Encode and Decode Strings", url: "https://leetcode.com/problems/encode-and-decode-strings/", diff: "Medium", pop: 8.8, prob: 78, companies: ["Google", "Meta"] },
+                    { id: "q9", title: "Longest Consecutive Sequence", url: "https://leetcode.com/problems/longest-consecutive-sequence/", diff: "Medium", pop: 9.4, prob: 85, companies: ["Google", "Amazon", "Microsoft"] },
+                    { id: "g75_1", title: "Ransom Note", url: "https://leetcode.com/problems/ransom-note/", diff: "Easy", pop: 8.8, prob: 75, companies: ["Apple", "Amazon"] },
+                    { id: "g75_2", title: "Majority Element", url: "https://leetcode.com/problems/majority-element/", diff: "Easy", pop: 9.3, prob: 82, companies: ["Amazon", "Microsoft"] },
+                    { id: "g75_3", title: "Sort Colors", url: "https://leetcode.com/problems/sort-colors/", diff: "Medium", pop: 8.9, prob: 78, companies: ["Microsoft", "Amazon"] },
+                    { id: "top150_1", title: "Merge Sorted Array", url: "https://leetcode.com/problems/merge-sorted-array/", diff: "Easy", pop: 8.5, prob: 80, companies: ["Microsoft", "Amazon", "Meta"] },
+                    { id: "top150_2", title: "Remove Element", url: "https://leetcode.com/problems/remove-element/", diff: "Easy", pop: 7.5, prob: 60, companies: ["Amazon", "Google"] },
+                    { id: "top150_3", title: "Rotate Array", url: "https://leetcode.com/problems/rotate-array/", diff: "Medium", pop: 8.8, prob: 75, companies: ["Amazon", "Microsoft"] },
+                    { id: "top150_4", title: "Insert Delete GetRandom O(1)", url: "https://leetcode.com/problems/insert-delete-getrandom-o1/", diff: "Medium", pop: 9.1, prob: 85, companies: ["Amazon", "LinkedIn", "Meta"] },
+                    { id: "top150_5", title: "Reverse Words in a String", url: "https://leetcode.com/problems/reverse-words-in-a-string/", diff: "Medium", pop: 8.9, prob: 82, companies: ["Amazon", "Microsoft", "Apple"] }
+                ]
+            },
+            {
+                name: "Cyclic Sort (Sean Prashad)",
+                questions: [
+                    { id: "sp_1", title: "Find All Numbers Disappeared in an Array", url: "https://leetcode.com/problems/find-all-numbers-disappeared-in-an-array/", diff: "Easy", pop: 8.8, prob: 75, companies: ["Amazon", "Google"] },
+                    { id: "sp_2", title: "Find All Duplicates in an Array", url: "https://leetcode.com/problems/find-all-duplicates-in-an-array/", diff: "Medium", pop: 8.5, prob: 78, companies: ["Amazon", "Microsoft"] },
+                    { id: "sp_3", title: "First Missing Positive", url: "https://leetcode.com/problems/first-missing-positive/", diff: "Hard", pop: 9.3, prob: 82, companies: ["Amazon", "Meta", "Google"] },
+                    { id: "sp_4", title: "Set Mismatch", url: "https://leetcode.com/problems/set-mismatch/", diff: "Easy", pop: 8.2, prob: 65, companies: ["Amazon", "Apple"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Two Pointers",
+        subPatterns: [
+            {
+                name: "Opposite Ends",
+                questions: [
+                    { id: "q10", title: "Valid Palindrome", url: "https://leetcode.com/problems/valid-palindrome/", diff: "Easy", pop: 9.3, prob: 85, companies: ["Meta", "Amazon", "Microsoft"] },
+                    { id: "q11", title: "Two Sum II - Input Array Is Sorted", url: "https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/", diff: "Medium", pop: 9.0, prob: 78, companies: ["Amazon", "Apple"] },
+                    { id: "q12", title: "3Sum", url: "https://leetcode.com/problems/3sum/", diff: "Medium", pop: 9.9, prob: 94, companies: ["Meta", "Amazon", "Microsoft", "Apple"] },
+                    { id: "q13", title: "Container With Most Water", url: "https://leetcode.com/problems/container-with-most-water/", diff: "Medium", pop: 9.5, prob: 90, companies: ["Google", "Meta", "Amazon"] },
+                    { id: "q14", title: "Trapping Rain Water", url: "https://leetcode.com/problems/trapping-rain-water/", diff: "Hard", pop: 9.9, prob: 96, companies: ["Amazon", "Google", "Meta", "Microsoft"] },
+                    { id: "g75_4", title: "Squares of a Sorted Array", url: "https://leetcode.com/problems/squares-of-a-sorted-array/", diff: "Easy", pop: 8.7, prob: 75, companies: ["Meta", "Apple"] }
+                ]
+            },
+            {
+                name: "Same Direction",
+                questions: [
+                    { id: "g75_5", title: "Move Zeroes", url: "https://leetcode.com/problems/move-zeroes/", diff: "Easy", pop: 9.0, prob: 85, companies: ["Meta", "Amazon", "Microsoft"] },
+                    { id: "sp_5", title: "Remove Duplicates from Sorted Array", url: "https://leetcode.com/problems/remove-duplicates-from-sorted-array/", diff: "Easy", pop: 8.5, prob: 70, companies: ["Meta", "Amazon"] },
+                    { id: "sp_6", title: "Subarray Product Less Than K", url: "https://leetcode.com/problems/subarray-product-less-than-k/", diff: "Medium", pop: 8.7, prob: 75, companies: ["LinkedIn", "Amazon"] },
+                    { id: "top100_2", title: "Next Permutation", url: "https://leetcode.com/problems/next-permutation/", diff: "Medium", pop: 9.5, prob: 88, companies: ["Meta", "Google", "Amazon"] },
+                    { id: "top150_8", title: "Is Subsequence", url: "https://leetcode.com/problems/is-subsequence/", diff: "Easy", pop: 8.7, prob: 78, companies: ["Amazon", "Meta", "Google"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Sliding Window",
+        subPatterns: [
+            {
+                name: "Dynamic Window",
+                questions: [
+                    { id: "q15", title: "Best Time to Buy and Sell Stock", url: "https://leetcode.com/problems/best-time-to-buy-and-sell-stock/", diff: "Easy", pop: 9.8, prob: 92, companies: ["Amazon", "Microsoft", "Google"] },
+                    { id: "q16", title: "Longest Substring Without Repeating Characters", url: "https://leetcode.com/problems/longest-substring-without-repeating-characters/", diff: "Medium", pop: 9.9, prob: 95, companies: ["Amazon", "Meta", "Google", "Apple"] },
+                    { id: "q17", title: "Longest Repeating Character Replacement", url: "https://leetcode.com/problems/longest-repeating-character-replacement/", diff: "Medium", pop: 9.1, prob: 86, companies: ["Google", "Amazon"] },
+                    { id: "q18", title: "Minimum Window Substring", url: "https://leetcode.com/problems/minimum-window-substring/", diff: "Hard", pop: 9.2, prob: 88, companies: ["Meta", "LinkedIn", "Google"] },
+                    { id: "g75_6", title: "Minimum Size Subarray Sum", url: "https://leetcode.com/problems/minimum-size-subarray-sum/", diff: "Medium", pop: 8.8, prob: 80, companies: ["Amazon", "Microsoft"] },
+                    { id: "sp_7", title: "Fruit Into Baskets", url: "https://leetcode.com/problems/fruit-into-baskets/", diff: "Medium", pop: 8.4, prob: 72, companies: ["Google", "Amazon"] },
+                    { id: "sp_8", title: "Max Consecutive Ones III", url: "https://leetcode.com/problems/max-consecutive-ones-iii/", diff: "Medium", pop: 9.1, prob: 85, companies: ["Meta", "Amazon"] }
+                ]
+            },
+            {
+                name: "Fixed Window",
+                questions: [
+                    { id: "q19", title: "Permutation in String", url: "https://leetcode.com/problems/permutation-in-string/", diff: "Medium", pop: 8.9, prob: 80, companies: ["Microsoft", "Amazon"] },
+                    { id: "q20", title: "Sliding Window Maximum", url: "https://leetcode.com/problems/sliding-window-maximum/", diff: "Hard", pop: 9.0, prob: 82, companies: ["Google", "Amazon"] },
+                    { id: "g75_7", title: "Find All Anagrams in a String", url: "https://leetcode.com/problems/find-all-anagrams-in-a-string/", diff: "Medium", pop: 9.2, prob: 84, companies: ["Amazon", "Microsoft"] },
+                    { id: "sp_9", title: "Maximum Average Subarray I", url: "https://leetcode.com/problems/maximum-average-subarray-i/", diff: "Easy", pop: 8.6, prob: 75, companies: ["Meta", "Google"] },
+                    { id: "top150_9", title: "Substring with Concatenation of All Words", url: "https://leetcode.com/problems/substring-with-concatenation-of-all-words/", diff: "Hard", pop: 8.1, prob: 65, companies: ["Amazon", "Apple"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Stack",
+        subPatterns: [
+            {
+                name: "LIFO Fundamentals",
+                questions: [
+                    { id: "q21", title: "Valid Parentheses", url: "https://leetcode.com/problems/valid-parentheses/", diff: "Easy", pop: 9.9, prob: 95, companies: ["Amazon", "Google", "Meta"] },
+                    { id: "q22", title: "Min Stack", url: "https://leetcode.com/problems/min-stack/", diff: "Medium", pop: 9.1, prob: 82, companies: ["Amazon", "Bloomberg"] },
+                    { id: "q23", title: "Evaluate Reverse Polish Notation", url: "https://leetcode.com/problems/evaluate-reverse-polish-notation/", diff: "Medium", pop: 8.7, prob: 78, companies: ["Google", "Amazon"] },
+                    { id: "q24", title: "Generate Parentheses", url: "https://leetcode.com/problems/generate-parentheses/", diff: "Medium", pop: 9.3, prob: 85, companies: ["Amazon", "Microsoft", "Meta"] },
+                    { id: "g75_8", title: "Decode String", url: "https://leetcode.com/problems/decode-string/", diff: "Medium", pop: 9.1, prob: 82, companies: ["Google", "Amazon"] },
+                    { id: "g75_9", title: "Backspace String Compare", url: "https://leetcode.com/problems/backspace-string-compare/", diff: "Easy", pop: 8.6, prob: 75, companies: ["Google"] },
+                    { id: "top100_3", title: "Longest Valid Parentheses", url: "https://leetcode.com/problems/longest-valid-parentheses/", diff: "Hard", pop: 9.2, prob: 82, companies: ["Amazon", "Meta"] },
+                    { id: "top150_10", title: "Simplify Path", url: "https://leetcode.com/problems/simplify-path/", diff: "Medium", pop: 8.4, prob: 72, companies: ["Meta", "Amazon"] },
+                    { id: "top150_11", title: "Basic Calculator", url: "https://leetcode.com/problems/basic-calculator/", diff: "Hard", pop: 9.0, prob: 82, companies: ["Meta", "Google", "Amazon"] }
+                ]
+            },
+            {
+                name: "Monotonic Stack",
+                questions: [
+                    { id: "q25", title: "Daily Temperatures", url: "https://leetcode.com/problems/daily-temperatures/", diff: "Medium", pop: 9.2, prob: 87, companies: ["Meta", "Amazon", "Google"] },
+                    { id: "q26", title: "Car Fleet", url: "https://leetcode.com/problems/car-fleet/", diff: "Medium", pop: 8.4, prob: 70, companies: ["Google"] },
+                    { id: "q27", title: "Largest Rectangle in Histogram", url: "https://leetcode.com/problems/largest-rectangle-in-histogram/", diff: "Hard", pop: 8.8, prob: 80, companies: ["Amazon", "Meta"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Binary Search",
+        subPatterns: [
+            {
+                name: "Search Space Reduction",
+                questions: [
+                    { id: "q28", title: "Binary Search", url: "https://leetcode.com/problems/binary-search/", diff: "Easy", pop: 9.5, prob: 80, companies: ["Google", "Apple"] },
+                    { id: "q29", title: "Search a 2D Matrix", url: "https://leetcode.com/problems/search-a-2d-matrix/", diff: "Medium", pop: 9.0, prob: 82, companies: ["Amazon", "Microsoft"] },
+                    { id: "q30", title: "Koko Eating Bananas", url: "https://leetcode.com/problems/koko-eating-bananas/", diff: "Medium", pop: 8.9, prob: 85, companies: ["Google", "Meta"] },
+                    { id: "g75_10", title: "First Bad Version", url: "https://leetcode.com/problems/first-bad-version/", diff: "Easy", pop: 8.9, prob: 82, companies: ["Google", "Meta"] },
+                    { id: "sp_10", title: "Search Insert Position", url: "https://leetcode.com/problems/search-insert-position/", diff: "Easy", pop: 8.5, prob: 70, companies: ["Amazon", "Apple"] },
+                    { id: "sp_11", title: "Peak Index in a Mountain Array", url: "https://leetcode.com/problems/peak-index-in-a-mountain-array/", diff: "Medium", pop: 8.3, prob: 68, companies: ["Amazon", "Bloomberg"] },
+                    { id: "sp_12", title: "Find Smallest Letter Greater Than Target", url: "https://leetcode.com/problems/find-smallest-letter-greater-than-target/", diff: "Easy", pop: 8.1, prob: 65, companies: ["LinkedIn"] },
+                    { id: "sp_13", title: "Find First and Last Position of Element in Sorted Array", url: "https://leetcode.com/problems/find-first-and-last-position-of-element-in-sorted-array/", diff: "Medium", pop: 9.2, prob: 85, companies: ["Meta", "Amazon", "Microsoft"] },
+                    { id: "top100_14", title: "Search a 2D Matrix II", url: "https://leetcode.com/problems/search-a-2d-matrix-ii/", diff: "Medium", pop: 9.1, prob: 85, companies: ["Amazon", "Microsoft"] },
+                    { id: "top150_18", title: "Find Peak Element", url: "https://leetcode.com/problems/find-peak-element/", diff: "Medium", pop: 8.9, prob: 80, companies: ["Meta", "Amazon", "Google"] }
+                ]
+            },
+            {
+                name: "Rotated & Complex Arrays",
+                questions: [
+                    { id: "q31", title: "Find Minimum in Rotated Sorted Array", url: "https://leetcode.com/problems/find-minimum-in-rotated-sorted-array/", diff: "Medium", pop: 9.1, prob: 88, companies: ["Microsoft", "Amazon"] },
+                    { id: "q32", title: "Search in Rotated Sorted Array", url: "https://leetcode.com/problems/search-in-rotated-sorted-array/", diff: "Medium", pop: 9.6, prob: 93, companies: ["Amazon", "Meta", "Google"] },
+                    { id: "q33", title: "Time Based Key-Value Store", url: "https://leetcode.com/problems/time-based-key-value-store/", diff: "Medium", pop: 8.5, prob: 75, companies: ["Google", "Netflix"] },
+                    { id: "q34", title: "Median of Two Sorted Arrays", url: "https://leetcode.com/problems/median-of-two-sorted-arrays/", diff: "Hard", pop: 9.4, prob: 85, companies: ["Google", "Amazon", "Apple"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Linked List",
+        subPatterns: [
+            {
+                name: "In-Place Reversal",
+                questions: [
+                    { id: "q35", title: "Reverse Linked List", url: "https://leetcode.com/problems/reverse-linked-list/", diff: "Easy", pop: 9.8, prob: 92, companies: ["Amazon", "Microsoft", "Apple"] },
+                    { id: "q36", title: "Reverse Nodes in k-Group", url: "https://leetcode.com/problems/reverse-nodes-in-k-group/", diff: "Hard", pop: 8.9, prob: 84, companies: ["Amazon", "Microsoft"] },
+                    { id: "sp_14", title: "Reverse Linked List II", url: "https://leetcode.com/problems/reverse-linked-list-ii/", diff: "Medium", pop: 8.6, prob: 75, companies: ["Amazon", "Microsoft", "Meta"] },
+                    { id: "top100_6", title: "Swap Nodes in Pairs", url: "https://leetcode.com/problems/swap-nodes-in-pairs/", diff: "Medium", pop: 8.8, prob: 80, companies: ["Amazon", "Microsoft"] }
+                ]
+            },
+            {
+                name: "Two Pointers (Fast/Slow)",
+                questions: [
+                    { id: "q37", title: "Linked List Cycle", url: "https://leetcode.com/problems/linked-list-cycle/", diff: "Easy", pop: 9.6, prob: 88, companies: ["Amazon", "Microsoft"] },
+                    { id: "q38", title: "Find the Duplicate Number", url: "https://leetcode.com/problems/find-the-duplicate-number/", diff: "Medium", pop: 9.1, prob: 80, companies: ["Amazon", "Microsoft"] },
+                    { id: "q39", title: "Remove Nth Node From End of List", url: "https://leetcode.com/problems/remove-nth-node-from-end-of-list/", diff: "Medium", pop: 9.2, prob: 85, companies: ["Meta", "Amazon"] },
+                    { id: "q40", title: "Reorder List", url: "https://leetcode.com/problems/reorder-list/", diff: "Medium", pop: 8.8, prob: 75, companies: ["Amazon", "Meta"] },
+                    { id: "g75_11", title: "Middle of the Linked List", url: "https://leetcode.com/problems/middle-of-the-linked-list/", diff: "Easy", pop: 9.0, prob: 82, companies: ["Amazon", "Microsoft"] },
+                    { id: "g75_12", title: "Palindrome Linked List", url: "https://leetcode.com/problems/palindrome-linked-list/", diff: "Easy", pop: 8.7, prob: 78, companies: ["Amazon", "Microsoft"] },
+                    { id: "top100_4", title: "Intersection of Two Linked Lists", url: "https://leetcode.com/problems/intersection-of-two-linked-lists/", diff: "Easy", pop: 9.0, prob: 85, companies: ["Amazon", "Microsoft", "Meta"] },
+                    { id: "top100_5", title: "Linked List Cycle II", url: "https://leetcode.com/problems/linked-list-cycle-ii/", diff: "Medium", pop: 8.9, prob: 84, companies: ["Amazon", "Microsoft"] }
+                ]
+            },
+            {
+                name: "Merging & Manipulation",
+                questions: [
+                    { id: "q41", title: "Merge Two Sorted Lists", url: "https://leetcode.com/problems/merge-two-sorted-lists/", diff: "Easy", pop: 9.7, prob: 90, companies: ["Amazon", "Microsoft"] },
+                    { id: "q42", title: "Merge k Sorted Lists", url: "https://leetcode.com/problems/merge-k-sorted-lists/", diff: "Hard", pop: 9.4, prob: 88, companies: ["Amazon", "Meta", "Google"] },
+                    { id: "q43", title: "Copy List with Random Pointer", url: "https://leetcode.com/problems/copy-list-with-random-pointer/", diff: "Medium", pop: 9.1, prob: 82, companies: ["Amazon", "Meta"] },
+                    { id: "q44", title: "Add Two Numbers", url: "https://leetcode.com/problems/add-two-numbers/", diff: "Medium", pop: 9.8, prob: 90, companies: ["Amazon", "Microsoft", "Apple"] },
+                    { id: "q45", title: "LRU Cache", url: "https://leetcode.com/problems/lru-cache/", diff: "Medium", pop: 9.9, prob: 96, companies: ["Amazon", "Meta", "Google", "Microsoft"] },
+                    { id: "sp_15", title: "Remove Linked List Elements", url: "https://leetcode.com/problems/remove-linked-list-elements/", diff: "Easy", pop: 8.3, prob: 70, companies: ["Amazon", "Apple"] },
+                    { id: "sp_16", title: "Sort List", url: "https://leetcode.com/problems/sort-list/", diff: "Medium", pop: 8.8, prob: 80, companies: ["Meta", "Microsoft"] },
+                    { id: "top150_14", title: "Remove Duplicates from Sorted List II", url: "https://leetcode.com/problems/remove-duplicates-from-sorted-list-ii/", diff: "Medium", pop: 8.6, prob: 75, companies: ["Amazon", "Microsoft"] },
+                    { id: "top150_15", title: "Partition List", url: "https://leetcode.com/problems/partition-list/", diff: "Medium", pop: 8.7, prob: 72, companies: ["Amazon", "Meta"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Trees",
+        subPatterns: [
+            {
+                name: "DFS: Recursion Fundamentals",
+                questions: [
+                    { id: "q46", title: "Invert Binary Tree", url: "https://leetcode.com/problems/invert-binary-tree/", diff: "Easy", pop: 9.6, prob: 85, companies: ["Google", "Amazon"] },
+                    { id: "q47", title: "Maximum Depth of Binary Tree", url: "https://leetcode.com/problems/maximum-depth-of-binary-tree/", diff: "Easy", pop: 9.5, prob: 80, companies: ["Amazon", "Apple"] },
+                    { id: "q48", title: "Diameter of Binary Tree", url: "https://leetcode.com/problems/diameter-of-binary-tree/", diff: "Easy", pop: 9.2, prob: 82, companies: ["Meta", "Amazon"] },
+                    { id: "q49", title: "Balanced Binary Tree", url: "https://leetcode.com/problems/balanced-binary-tree/", diff: "Easy", pop: 9.0, prob: 78, companies: ["Amazon", "Google"] },
+                    { id: "q50", title: "Same Tree", url: "https://leetcode.com/problems/same-tree/", diff: "Easy", pop: 8.8, prob: 70, companies: ["Amazon"] },
+                    { id: "q51", title: "Subtree of Another Tree", url: "https://leetcode.com/problems/subtree-of-another-tree/", diff: "Easy", pop: 8.9, prob: 75, companies: ["Amazon", "Google"] },
+                    { id: "q52", title: "Count Good Nodes in Binary Tree", url: "https://leetcode.com/problems/count-good-nodes-in-binary-tree/", diff: "Medium", pop: 8.7, prob: 72, companies: ["Microsoft"] },
+                    { id: "g75_13", title: "Lowest Common Ancestor of a Binary Tree", url: "https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree/", diff: "Medium", pop: 9.4, prob: 90, companies: ["Meta", "Amazon"] },
+                    { id: "g75_14", title: "Symmetric Tree", url: "https://leetcode.com/problems/symmetric-tree/", diff: "Easy", pop: 8.8, prob: 75, companies: ["Amazon", "Microsoft"] },
+                    { id: "g75_15", title: "Path Sum", url: "https://leetcode.com/problems/path-sum/", diff: "Easy", pop: 8.6, prob: 70, companies: ["Amazon", "Microsoft"] },
+                    { id: "sp_17", title: "Minimum Depth of Binary Tree", url: "https://leetcode.com/problems/minimum-depth-of-binary-tree/", diff: "Easy", pop: 8.2, prob: 65, companies: ["Amazon"] },
+                    { id: "sp_18", title: "Merge Two Binary Trees", url: "https://leetcode.com/problems/merge-two-binary-trees/", diff: "Easy", pop: 8.7, prob: 75, companies: ["Amazon", "Apple"] },
+                    { id: "top100_7", title: "Binary Tree Inorder Traversal", url: "https://leetcode.com/problems/binary-tree-inorder-traversal/", diff: "Easy", pop: 9.4, prob: 88, companies: ["Amazon", "Microsoft"] }
+                ]
+            },
+            {
+                name: "BFS: Level Order Traversal",
+                questions: [
+                    { id: "q53", title: "Binary Tree Level Order Traversal", url: "https://leetcode.com/problems/binary-tree-level-order-traversal/", diff: "Medium", pop: 9.4, prob: 86, companies: ["Amazon", "Microsoft"] },
+                    { id: "q54", title: "Binary Tree Right Side View", url: "https://leetcode.com/problems/binary-tree-right-side-view/", diff: "Medium", pop: 9.1, prob: 84, companies: ["Meta", "Amazon"] },
+                    { id: "sp_19", title: "Average of Levels in Binary Tree", url: "https://leetcode.com/problems/average-of-levels-in-binary-tree/", diff: "Easy", pop: 8.4, prob: 72, companies: ["Meta"] },
+                    { id: "sp_20", title: "Binary Tree Zigzag Level Order Traversal", url: "https://leetcode.com/problems/binary-tree-zigzag-level-order-traversal/", diff: "Medium", pop: 9.0, prob: 82, companies: ["Amazon", "Microsoft"] },
+                    { id: "sp_21", title: "Populating Next Right Pointers in Each Node", url: "https://leetcode.com/problems/populating-next-right-pointers-in-each-node/", diff: "Medium", pop: 8.8, prob: 78, companies: ["Microsoft", "Bloomberg"] }
+                ]
+            },
+            {
+                name: "Binary Search Trees (BST)",
+                questions: [
+                    { id: "q55", title: "Lowest Common Ancestor of a BST", url: "https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-search-tree/", diff: "Medium", pop: 9.2, prob: 85, companies: ["Amazon", "Meta"] },
+                    { id: "q56", title: "Validate Binary Search Tree", url: "https://leetcode.com/problems/validate-binary-search-tree/", diff: "Medium", pop: 9.5, prob: 90, companies: ["Amazon", "Meta", "Google"] },
+                    { id: "q57", title: "Kth Smallest Element in a BST", url: "https://leetcode.com/problems/kth-smallest-element-in-a-bst/", diff: "Medium", pop: 9.0, prob: 82, companies: ["Amazon", "Google"] },
+                    { id: "top150_17", title: "Binary Search Tree Iterator", url: "https://leetcode.com/problems/binary-search-tree-iterator/", diff: "Medium", pop: 9.1, prob: 82, companies: ["Meta", "Amazon", "Google"] }
+                ]
+            },
+            {
+                name: "Advanced Construction & Paths",
+                questions: [
+                    { id: "q58", title: "Construct Binary Tree from Preorder and Inorder Traversal", url: "https://leetcode.com/problems/construct-binary-tree-from-preorder-and-inorder-traversal/", diff: "Medium", pop: 9.3, prob: 86, companies: ["Amazon", "Microsoft"] },
+                    { id: "q59", title: "Binary Tree Maximum Path Sum", url: "https://leetcode.com/problems/binary-tree-maximum-path-sum/", diff: "Hard", pop: 9.4, prob: 88, companies: ["Meta", "Google", "Amazon"] },
+                    { id: "q60", title: "Serialize and Deserialize Binary Tree", url: "https://leetcode.com/problems/serialize-and-deserialize-binary-tree/", diff: "Hard", pop: 9.5, prob: 90, companies: ["Meta", "Amazon", "Google"] },
+                    { id: "sp_22", title: "Path Sum II", url: "https://leetcode.com/problems/path-sum-ii/", diff: "Medium", pop: 8.6, prob: 76, companies: ["Amazon", "Bloomberg"] },
+                    { id: "sp_23", title: "Path Sum III", url: "https://leetcode.com/problems/path-sum-iii/", diff: "Medium", pop: 8.7, prob: 78, companies: ["Amazon"] },
+                    { id: "top100_8", title: "Flatten Binary Tree to Linked List", url: "https://leetcode.com/problems/flatten-binary-tree-to-linked-list/", diff: "Medium", pop: 9.1, prob: 85, companies: ["Meta", "Amazon", "Microsoft"] },
+                    { id: "top150_16", title: "Sum Root to Leaf Numbers", url: "https://leetcode.com/problems/sum-root-to-leaf-numbers/", diff: "Medium", pop: 8.8, prob: 75, companies: ["Meta", "Amazon"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Tries",
+        subPatterns: [
+            {
+                name: "Prefix Tree Implementation",
+                questions: [
+                    { id: "q61", title: "Implement Trie (Prefix Tree)", url: "https://leetcode.com/problems/implement-trie-prefix-tree/", diff: "Medium", pop: 9.2, prob: 86, companies: ["Google", "Amazon", "Twitter"] },
+                    { id: "q62", title: "Design Add and Search Words Data Structure", url: "https://leetcode.com/problems/design-add-and-search-words-data-structure/", diff: "Medium", pop: 8.9, prob: 80, companies: ["Meta", "Amazon"] },
+                    { id: "q63", title: "Word Search II", url: "https://leetcode.com/problems/word-search-ii/", diff: "Hard", pop: 9.1, prob: 85, companies: ["Amazon", "Google", "Microsoft"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Heap / Priority Queue",
+        subPatterns: [
+            {
+                name: "Top K Elements",
+                questions: [
+                    { id: "q64", title: "Kth Largest Element in a Stream", url: "https://leetcode.com/problems/kth-largest-element-in-a-stream/", diff: "Easy", pop: 8.7, prob: 75, companies: ["Amazon"] },
+                    { id: "q65", title: "Last Stone Weight", url: "https://leetcode.com/problems/last-stone-weight/", diff: "Easy", pop: 8.5, prob: 70, companies: ["Amazon"] },
+                    { id: "q66", title: "K Closest Points to Origin", url: "https://leetcode.com/problems/k-closest-points-to-origin/", diff: "Medium", pop: 9.3, prob: 88, companies: ["Amazon", "Meta"] },
+                    { id: "q67", title: "Kth Largest Element in an Array", url: "https://leetcode.com/problems/kth-largest-element-in-an-array/", diff: "Medium", pop: 9.6, prob: 92, companies: ["Meta", "Amazon", "Google"] },
+                    { id: "g75_16", title: "Top K Frequent Words", url: "https://leetcode.com/problems/top-k-frequent-words/", diff: "Medium", pop: 8.9, prob: 82, companies: ["Amazon", "Bloomberg"] }
+                ]
+            },
+            {
+                name: "Advanced Heap Patterns",
+                questions: [
+                    { id: "q68", title: "Task Scheduler", url: "https://leetcode.com/problems/task-scheduler/", diff: "Medium", pop: 9.0, prob: 82, companies: ["Meta", "Amazon"] },
+                    { id: "q69", title: "Design Twitter", url: "https://leetcode.com/problems/design-twitter/", diff: "Medium", pop: 8.4, prob: 72, companies: ["Twitter", "Amazon"] },
+                    { id: "q70", title: "Find Median from Data Stream", url: "https://leetcode.com/problems/find-median-from-data-stream/", diff: "Hard", pop: 9.5, prob: 90, companies: ["Amazon", "Google", "Apple"] },
+                    { id: "top150_19", title: "IPO", url: "https://leetcode.com/problems/ipo/", diff: "Hard", pop: 8.3, prob: 65, companies: ["Amazon", "Microsoft"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Backtracking",
+        subPatterns: [
+            {
+                name: "Combinations & Permutations",
+                questions: [
+                    { id: "q71", title: "Subsets", url: "https://leetcode.com/problems/subsets/", diff: "Medium", pop: 9.4, prob: 88, companies: ["Meta", "Amazon"] },
+                    { id: "q72", title: "Subsets II", url: "https://leetcode.com/problems/subsets-ii/", diff: "Medium", pop: 8.8, prob: 78, companies: ["Amazon"] },
+                    { id: "q73", title: "Combination Sum", url: "https://leetcode.com/problems/combination-sum/", diff: "Medium", pop: 9.5, prob: 90, companies: ["Amazon", "Airbnb"] },
+                    { id: "q74", title: "Combination Sum II", url: "https://leetcode.com/problems/combination-sum-ii/", diff: "Medium", pop: 8.9, prob: 80, companies: ["Amazon", "Microsoft"] },
+                    { id: "q75", title: "Permutations", url: "https://leetcode.com/problems/permutations/", diff: "Medium", pop: 9.6, prob: 92, companies: ["Amazon", "Microsoft", "LinkedIn"] },
+                    { id: "q76", title: "Letter Combinations of a Phone Number", url: "https://leetcode.com/problems/letter-combinations-of-a-phone-number/", diff: "Medium", pop: 9.4, prob: 88, companies: ["Amazon", "Google", "Meta"] },
+                    { id: "top100_13", title: "Combinations", url: "https://leetcode.com/problems/combinations/", diff: "Medium", pop: 8.8, prob: 78, companies: ["Google", "Amazon"] }
+                ]
+            },
+            {
+                name: "Constraint Satisfaction",
+                questions: [
+                    { id: "q77", title: "Word Search", url: "https://leetcode.com/problems/word-search/", diff: "Medium", pop: 9.5, prob: 89, companies: ["Amazon", "Microsoft", "Bloomberg"] },
+                    { id: "q78", title: "Palindrome Partitioning", url: "https://leetcode.com/problems/palindrome-partitioning/", diff: "Medium", pop: 8.7, prob: 75, companies: ["Amazon", "Google"] },
+                    { id: "q79", title: "N-Queens", url: "https://leetcode.com/problems/n-queens/", diff: "Hard", pop: 9.1, prob: 80, companies: ["Amazon", "Meta"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Graphs",
+        subPatterns: [
+            {
+                name: "Graph Traversal (Matrix)",
+                questions: [
+                    { id: "q80", title: "Number of Islands", url: "https://leetcode.com/problems/number-of-islands/", diff: "Medium", pop: 9.9, prob: 96, companies: ["Amazon", "Google", "Meta", "Microsoft"] },
+                    { id: "q81", title: "Max Area of Island", url: "https://leetcode.com/problems/max-area-of-island/", diff: "Medium", pop: 9.2, prob: 85, companies: ["Amazon", "Google"] },
+                    { id: "q82", title: "Surrounded Regions", url: "https://leetcode.com/problems/surrounded-regions/", diff: "Medium", pop: 8.6, prob: 75, companies: ["Amazon"] },
+                    { id: "q83", title: "Rotting Oranges", url: "https://leetcode.com/problems/rotting-oranges/", diff: "Medium", pop: 9.4, prob: 88, companies: ["Amazon", "Microsoft"] },
+                    { id: "q84", title: "Walls and Gates (Treasure Island)", url: "https://leetcode.com/problems/walls-and-gates/", diff: "Medium", pop: 8.9, prob: 80, companies: ["Amazon", "Meta"] },
+                    { id: "q85", title: "Pacific Atlantic Water Flow", url: "https://leetcode.com/problems/pacific-atlantic-water-flow/", diff: "Medium", pop: 8.8, prob: 78, companies: ["Google", "Amazon"] },
+                    { id: "g75_17", title: "01 Matrix", url: "https://leetcode.com/problems/01-matrix/", diff: "Medium", pop: 9.0, prob: 82, companies: ["Google", "Amazon"] },
+                    { id: "g75_18", title: "Shortest Path in Binary Matrix", url: "https://leetcode.com/problems/shortest-path-in-binary-matrix/", diff: "Medium", pop: 8.7, prob: 78, companies: ["Meta", "Google"] }
+                ]
+            },
+            {
+                name: "Adjacency List & Graph Fundamentals",
+                questions: [
+                    { id: "q86", title: "Clone Graph", url: "https://leetcode.com/problems/clone-graph/", diff: "Medium", pop: 9.1, prob: 82, companies: ["Meta", "Amazon"] },
+                    { id: "q87", title: "Word Ladder", url: "https://leetcode.com/problems/word-ladder/", diff: "Hard", pop: 9.3, prob: 85, companies: ["Amazon", "Meta"] },
+                    { id: "sp_24", title: "Is Graph Bipartite?", url: "https://leetcode.com/problems/is-graph-bipartite/", diff: "Medium", pop: 8.8, prob: 80, companies: ["Meta", "Amazon"] }
+                ]
+            },
+            {
+                name: "Topological Sort & Union Find",
+                questions: [
+                    { id: "q88", title: "Course Schedule", url: "https://leetcode.com/problems/course-schedule/", diff: "Medium", pop: 9.6, prob: 92, companies: ["Amazon", "Google", "Meta"] },
+                    { id: "q89", title: "Course Schedule II", url: "https://leetcode.com/problems/course-schedule-ii/", diff: "Medium", pop: 9.3, prob: 88, companies: ["Amazon", "Microsoft"] },
+                    { id: "q90", title: "Redundant Connection", url: "https://leetcode.com/problems/redundant-connection/", diff: "Medium", pop: 8.7, prob: 76, companies: ["Google", "Amazon"] },
+                    { id: "g75_19", title: "Number of Provinces", url: "https://leetcode.com/problems/number-of-provinces/", diff: "Medium", pop: 8.8, prob: 80, companies: ["Amazon", "Google"] },
+                    { id: "g75_20", title: "Accounts Merge", url: "https://leetcode.com/problems/accounts-merge/", diff: "Medium", pop: 9.1, prob: 84, companies: ["Meta", "Amazon"] },
+                    { id: "g75_21", title: "Minimum Height Trees", url: "https://leetcode.com/problems/minimum-height-trees/", diff: "Medium", pop: 8.5, prob: 72, companies: ["Google", "Amazon"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Advanced Graphs",
+        subPatterns: [
+            {
+                name: "Shortest Path & Minimum Spanning Tree",
+                questions: [
+                    { id: "q91", title: "Network Delay Time", url: "https://leetcode.com/problems/network-delay-time/", diff: "Medium", pop: 9.0, prob: 84, companies: ["Google", "Amazon"] },
+                    { id: "q92", title: "Cheapest Flights Within K Stops", url: "https://leetcode.com/problems/cheapest-flights-within-k-stops/", diff: "Medium", pop: 8.8, prob: 80, companies: ["Airbnb", "Amazon"] },
+                    { id: "q93", title: "Min Cost to Connect All Points", url: "https://leetcode.com/problems/min-cost-to-connect-all-points/", diff: "Medium", pop: 8.5, prob: 75, companies: ["Amazon"] },
+                    { id: "q94", title: "Swim in Rising Water", url: "https://leetcode.com/problems/swim-in-rising-water/", diff: "Hard", pop: 8.2, prob: 65, companies: ["Google"] }
+                ]
+            },
+            {
+                name: "Eulerian Path & Hard Topological Sort",
+                questions: [
+                    { id: "q95", title: "Reconstruct Itinerary", url: "https://leetcode.com/problems/reconstruct-itinerary/", diff: "Hard", pop: 8.6, prob: 78, companies: ["Amazon", "Google"] },
+                    { id: "q96", title: "Alien Dictionary", url: "https://leetcode.com/problems/alien-dictionary/", diff: "Hard", pop: 9.2, prob: 85, companies: ["Meta", "Airbnb"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "1-D Dynamic Programming",
+        subPatterns: [
+            {
+                name: "Fibonacci Sequence & Array iteration",
+                questions: [
+                    { id: "q97", title: "Climbing Stairs", url: "https://leetcode.com/problems/climbing-stairs/", diff: "Easy", pop: 9.7, prob: 90, companies: ["Amazon", "Apple", "Google"] },
+                    { id: "q98", title: "Min Cost Climbing Stairs", url: "https://leetcode.com/problems/min-cost-climbing-stairs/", diff: "Easy", pop: 9.0, prob: 80, companies: ["Amazon"] },
+                    { id: "q99", title: "House Robber", url: "https://leetcode.com/problems/house-robber/", diff: "Medium", pop: 9.5, prob: 88, companies: ["Amazon", "Google"] },
+                    { id: "q100", title: "House Robber II", url: "https://leetcode.com/problems/house-robber-ii/", diff: "Medium", pop: 8.9, prob: 82, companies: ["Amazon", "Microsoft"] },
+                    { id: "q101", title: "Decode Ways", url: "https://leetcode.com/problems/decode-ways/", diff: "Medium", pop: 9.1, prob: 85, companies: ["Meta", "Amazon"] },
+                    { id: "top100_11", title: "Perfect Squares", url: "https://leetcode.com/problems/perfect-squares/", diff: "Medium", pop: 8.9, prob: 82, companies: ["Amazon", "Google"] }
+                ]
+            },
+            {
+                name: "Subsequence & Substrings",
+                questions: [
+                    { id: "q102", title: "Longest Palindromic Substring", url: "https://leetcode.com/problems/longest-palindromic-substring/", diff: "Medium", pop: 9.8, prob: 92, companies: ["Amazon", "Microsoft", "Meta"] },
+                    { id: "q103", title: "Palindromic Substrings", url: "https://leetcode.com/problems/palindromic-substrings/", diff: "Medium", pop: 8.8, prob: 78, companies: ["Meta", "Google"] },
+                    { id: "q104", title: "Longest Increasing Subsequence", url: "https://leetcode.com/problems/longest-increasing-subsequence/", diff: "Medium", pop: 9.4, prob: 88, companies: ["Amazon", "Google", "Meta"] },
+                    { id: "q105", title: "Maximum Product Subarray", url: "https://leetcode.com/problems/maximum-product-subarray/", diff: "Medium", pop: 9.2, prob: 86, companies: ["LinkedIn", "Amazon"] },
+                    { id: "sp_26", title: "Range Sum Query - Immutable", url: "https://leetcode.com/problems/range-sum-query-immutable/", diff: "Easy", pop: 8.5, prob: 70, companies: ["Amazon", "Apple"] }
+                ]
+            },
+            {
+                name: "Knapsack Variations",
+                questions: [
+                    { id: "q106", title: "Coin Change", url: "https://leetcode.com/problems/coin-change/", diff: "Medium", pop: 9.6, prob: 92, companies: ["Amazon", "Google", "Microsoft"] },
+                    { id: "q107", title: "Word Break", url: "https://leetcode.com/problems/word-break/", diff: "Medium", pop: 9.5, prob: 89, companies: ["Amazon", "Meta", "Google"] },
+                    { id: "q108", title: "Partition Equal Subset Sum", url: "https://leetcode.com/problems/partition-equal-subset-sum/", diff: "Medium", pop: 8.9, prob: 80, companies: ["Amazon", "Meta"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "2-D Dynamic Programming",
+        subPatterns: [
+            {
+                name: "Grid DP",
+                questions: [
+                    { id: "q109", title: "Unique Paths", url: "https://leetcode.com/problems/unique-paths/", diff: "Medium", pop: 9.4, prob: 88, companies: ["Amazon", "Google"] },
+                    { id: "q110", title: "Longest Increasing Path in a Matrix", url: "https://leetcode.com/problems/longest-increasing-path-in-a-matrix/", diff: "Hard", pop: 8.8, prob: 80, companies: ["Google", "Meta"] },
+                    { id: "top100_9", title: "Minimum Path Sum", url: "https://leetcode.com/problems/minimum-path-sum/", diff: "Medium", pop: 9.2, prob: 86, companies: ["Amazon", "Google"] },
+                    { id: "top100_10", title: "Maximal Square", url: "https://leetcode.com/problems/maximal-square/", diff: "Medium", pop: 9.0, prob: 84, companies: ["Amazon", "Google", "Apple"] },
+                    { id: "top150_22", title: "Triangle", url: "https://leetcode.com/problems/triangle/", diff: "Medium", pop: 8.6, prob: 72, companies: ["Amazon", "Apple"] }
+                ]
+            },
+            {
+                name: "String DP",
+                questions: [
+                    { id: "q111", title: "Longest Common Subsequence", url: "https://leetcode.com/problems/longest-common-subsequence/", diff: "Medium", pop: 9.3, prob: 86, companies: ["Amazon", "Google"] },
+                    { id: "q112", title: "Edit Distance", url: "https://leetcode.com/problems/edit-distance/", diff: "Medium", pop: 9.1, prob: 84, companies: ["Google", "Amazon"] },
+                    { id: "q113", title: "Interleaving String", url: "https://leetcode.com/problems/interleaving-string/", diff: "Medium", pop: 8.5, prob: 70, companies: ["Apple", "Amazon"] },
+                    { id: "q114", title: "Distinct Subsequences", url: "https://leetcode.com/problems/distinct-subsequences/", diff: "Hard", pop: 8.3, prob: 68, companies: ["Google"] },
+                    { id: "q115", title: "Regular Expression Matching", url: "https://leetcode.com/problems/regular-expression-matching/", diff: "Hard", pop: 9.0, prob: 82, companies: ["Meta", "Amazon"] }
+                ]
+            },
+            {
+                name: "State Machine & Knapsack",
+                questions: [
+                    { id: "q116", title: "Best Time to Buy and Sell Stock with Cooldown", url: "https://leetcode.com/problems/best-time-to-buy-and-sell-stock-with-cooldown/", diff: "Medium", pop: 8.7, prob: 75, companies: ["Amazon", "Google"] },
+                    { id: "q117", title: "Coin Change II", url: "https://leetcode.com/problems/coin-change-ii/", diff: "Medium", pop: 8.6, prob: 74, companies: ["Amazon"] },
+                    { id: "q118", title: "Target Sum", url: "https://leetcode.com/problems/target-sum/", diff: "Medium", pop: 8.9, prob: 78, companies: ["Amazon", "Meta"] },
+                    { id: "q119", title: "Burst Balloons", url: "https://leetcode.com/problems/burst-balloons/", diff: "Hard", pop: 8.4, prob: 70, companies: ["Google", "Amazon"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Greedy",
+        subPatterns: [
+            {
+                name: "Array Optimizations",
+                questions: [
+                    { id: "q120", title: "Maximum Subarray", url: "https://leetcode.com/problems/maximum-subarray/", diff: "Medium", pop: 9.9, prob: 96, companies: ["Amazon", "Microsoft", "Apple", "Meta"] },
+                    { id: "q121", title: "Jump Game", url: "https://leetcode.com/problems/jump-game/", diff: "Medium", pop: 9.3, prob: 88, companies: ["Amazon", "Meta"] },
+                    { id: "q122", title: "Jump Game II", url: "https://leetcode.com/problems/jump-game-ii/", diff: "Medium", pop: 8.9, prob: 80, companies: ["Amazon", "Google"] },
+                    { id: "q123", title: "Gas Station", url: "https://leetcode.com/problems/gas-station/", diff: "Medium", pop: 8.8, prob: 78, companies: ["Amazon", "Google"] }
+                ]
+            },
+            {
+                name: "Partitioning & Sequencing",
+                questions: [
+                    { id: "q124", title: "Hand of Straights", url: "https://leetcode.com/problems/hand-of-straights/", diff: "Medium", pop: 8.5, prob: 72, companies: ["Google", "Amazon"] },
+                    { id: "q125", title: "Merge Triplets to Form Target Triplet", url: "https://leetcode.com/problems/merge-triplets-to-form-target-triplet/", diff: "Medium", pop: 8.2, prob: 65, companies: ["Google"] },
+                    { id: "q126", title: "Partition Labels", url: "https://leetcode.com/problems/partition-labels/", diff: "Medium", pop: 9.1, prob: 82, companies: ["Amazon", "Meta"] },
+                    { id: "q127", title: "Valid Parenthesis String", url: "https://leetcode.com/problems/valid-parenthesis-string/", diff: "Medium", pop: 8.7, prob: 75, companies: ["Meta", "Amazon"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Intervals",
+        subPatterns: [
+            {
+                name: "Overlapping Validation",
+                questions: [
+                    { id: "q128", title: "Insert Interval", url: "https://leetcode.com/problems/insert-interval/", diff: "Medium", pop: 9.2, prob: 86, companies: ["Google", "Meta", "LinkedIn"] },
+                    { id: "q129", title: "Merge Intervals", url: "https://leetcode.com/problems/merge-intervals/", diff: "Medium", pop: 9.8, prob: 94, companies: ["Meta", "Google", "Amazon", "Microsoft"] },
+                    { id: "q130", title: "Non-overlapping Intervals", url: "https://leetcode.com/problems/non-overlapping-intervals/", diff: "Medium", pop: 8.9, prob: 80, companies: ["Meta", "Amazon"] },
+                    { id: "sp_25", title: "Interval List Intersections", url: "https://leetcode.com/problems/interval-list-intersections/", diff: "Medium", pop: 9.0, prob: 82, companies: ["Meta", "Uber", "Apple"] },
+                    { id: "top150_12", title: "Summary Ranges", url: "https://leetcode.com/problems/summary-ranges/", diff: "Easy", pop: 8.5, prob: 70, companies: ["Amazon", "Google"] },
+                    { id: "top150_13", title: "Minimum Number of Arrows to Burst Balloons", url: "https://leetcode.com/problems/minimum-number-of-arrows-to-burst-balloons/", diff: "Medium", pop: 8.9, prob: 78, companies: ["Amazon", "Meta"] }
+                ]
+            },
+            {
+                name: "Meeting Rooms & Line Sweep",
+                questions: [
+                    { id: "q131", title: "Meeting Rooms", url: "https://leetcode.com/problems/meeting-rooms/", diff: "Easy", pop: 9.1, prob: 85, companies: ["Meta", "Amazon"] },
+                    { id: "q132", title: "Meeting Rooms II", url: "https://leetcode.com/problems/meeting-rooms-ii/", diff: "Medium", pop: 9.5, prob: 92, companies: ["Meta", "Google", "Amazon", "Uber"] },
+                    { id: "q133", title: "Minimum Interval to Include Each Query", url: "https://leetcode.com/problems/minimum-interval-to-include-each-query/", diff: "Hard", pop: 8.4, prob: 70, companies: ["Google", "Meta"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Math & Geometry",
+        subPatterns: [
+            {
+                name: "Matrix Manipulation",
+                questions: [
+                    { id: "q134", title: "Rotate Image", url: "https://leetcode.com/problems/rotate-image/", diff: "Medium", pop: 9.2, prob: 85, companies: ["Amazon", "Microsoft", "Apple"] },
+                    { id: "q135", title: "Spiral Matrix", url: "https://leetcode.com/problems/spiral-matrix/", diff: "Medium", pop: 9.4, prob: 88, companies: ["Amazon", "Microsoft", "Apple"] },
+                    { id: "q136", title: "Set Matrix Zeroes", url: "https://leetcode.com/problems/set-matrix-zeroes/", diff: "Medium", pop: 9.1, prob: 84, companies: ["Amazon", "Microsoft"] }
+                ]
+            },
+            {
+                name: "Numbers & Geometry",
+                questions: [
+                    { id: "q137", title: "Happy Number", url: "https://leetcode.com/problems/happy-number/", diff: "Easy", pop: 8.8, prob: 75, companies: ["Amazon", "Google"] },
+                    { id: "q138", title: "Plus One", url: "https://leetcode.com/problems/plus-one/", diff: "Easy", pop: 8.9, prob: 78, companies: ["Google"] },
+                    { id: "q139", title: "Pow(x, n)", url: "https://leetcode.com/problems/powx-n/", diff: "Medium", pop: 9.0, prob: 80, companies: ["Meta", "LinkedIn"] },
+                    { id: "q140", title: "Multiply Strings", url: "https://leetcode.com/problems/multiply-strings/", diff: "Medium", pop: 8.7, prob: 75, companies: ["Meta", "Microsoft"] },
+                    { id: "q141", title: "Detect Squares", url: "https://leetcode.com/problems/detect-squares/", diff: "Medium", pop: 8.5, prob: 70, companies: ["Google", "Stripe"] },
+                    { id: "g75_22", title: "Roman to Integer", url: "https://leetcode.com/problems/roman-to-integer/", diff: "Easy", pop: 9.1, prob: 85, companies: ["Amazon", "Apple"] },
+                    { id: "g75_23", title: "String to Integer (atoi)", url: "https://leetcode.com/problems/string-to-integer-atoi/", diff: "Medium", pop: 8.8, prob: 82, companies: ["Amazon", "Microsoft", "Meta"] },
+                    { id: "top100_12", title: "Unique Binary Search Trees", url: "https://leetcode.com/problems/unique-binary-search-trees/", diff: "Medium", pop: 8.7, prob: 80, companies: ["Amazon", "Google"] },
+                    { id: "top150_20", title: "Palindrome Number", url: "https://leetcode.com/problems/palindrome-number/", diff: "Easy", pop: 9.2, prob: 75, companies: ["Amazon", "Apple"] },
+                    { id: "top150_21", title: "Factorial Trailing Zeroes", url: "https://leetcode.com/problems/factorial-trailing-zeroes/", diff: "Medium", pop: 8.4, prob: 68, companies: ["Amazon", "Microsoft"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Bit Manipulation",
+        subPatterns: [
+            {
+                name: "XOR & Bit Tracking",
+                questions: [
+                    { id: "q142", title: "Single Number", url: "https://leetcode.com/problems/single-number/", diff: "Easy", pop: 9.5, prob: 85, companies: ["Amazon", "Google"] },
+                    { id: "q143", title: "Number of 1 Bits", url: "https://leetcode.com/problems/number-of-1-bits/", diff: "Easy", pop: 9.1, prob: 80, companies: ["Apple", "Microsoft"] },
+                    { id: "q144", title: "Counting Bits", url: "https://leetcode.com/problems/counting-bits/", diff: "Easy", pop: 8.9, prob: 78, companies: ["Amazon", "Apple"] },
+                    { id: "q145", title: "Reverse Bits", url: "https://leetcode.com/problems/reverse-bits/", diff: "Easy", pop: 8.8, prob: 75, companies: ["Apple"] },
+                    { id: "q146", title: "Missing Number", url: "https://leetcode.com/problems/missing-number/", diff: "Easy", pop: 9.2, prob: 82, companies: ["Amazon", "Microsoft"] },
+                    { id: "q147", title: "Sum of Two Integers", url: "https://leetcode.com/problems/sum-of-two-integers/", diff: "Medium", pop: 8.6, prob: 72, companies: ["Meta", "Amazon"] },
+                    { id: "q148", title: "Reverse Integer", url: "https://leetcode.com/problems/reverse-integer/", diff: "Medium", pop: 9.4, prob: 86, companies: ["Amazon", "Apple"] },
+                    { id: "g75_24", title: "Add Binary", url: "https://leetcode.com/problems/add-binary/", diff: "Easy", pop: 8.7, prob: 75, companies: ["Meta", "Apple"] }
+                ]
+            }
+        ]
+    }
+];
+
+const sdHldDb = [
+    {
+        pattern: "Distributed Systems Fundamentals",
+        subPatterns: [
+            {
+                name: "Core Components",
+                questions: [
+                    { id: "hld1", title: "Design a Rate Limiter", url: "https://bytebytego.com/courses/system-design-interview/design-a-rate-limiter", diff: "Medium", pop: 9.8, prob: 95, companies: ["Stripe", "Meta", "Google"], youtube: "https://www.youtube.com/results?search_query=system+design+rate+limiter" },
+                    { id: "hld2", title: "Design a Key-Value Store", url: "https://bytebytego.com/courses/system-design-interview/design-a-key-value-store", diff: "Hard", pop: 9.5, prob: 90, companies: ["Amazon", "Apple", "Meta"], youtube: "https://www.youtube.com/results?search_query=system+design+key+value+store" },
+                    { id: "hld3", title: "Design a URL Shortener", url: "https://bytebytego.com/courses/system-design-interview/design-a-url-shortener", diff: "Easy", pop: 9.9, prob: 92, companies: ["Google", "Microsoft"], youtube: "https://www.youtube.com/results?search_query=system+design+url+shortener" },
+                    { id: "hld4", title: "Design a Distributed Message Queue", url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/kafka", diff: "Hard", pop: 8.9, prob: 85, companies: ["LinkedIn", "Uber"], youtube: "https://www.youtube.com/results?search_query=system+design+message+queue+kafka" }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Real-world Architectures",
+        subPatterns: [
+            {
+                name: "Social Networks & Communication",
+                questions: [
+                    { id: "hld5", title: "Design Twitter / News Feed", url: "https://bytebytego.com/courses/system-design-interview/design-a-news-feed-system", diff: "Hard", pop: 9.7, prob: 96, companies: ["Meta", "Twitter", "Amazon"], youtube: "https://www.youtube.com/results?search_query=system+design+twitter+news+feed" },
+                    { id: "hld6", title: "Design WhatsApp / Chat Application", url: "https://bytebytego.com/courses/system-design-interview/design-a-chat-system", diff: "Hard", pop: 9.6, prob: 94, companies: ["Meta", "Microsoft"], youtube: "https://www.youtube.com/results?search_query=system+design+whatsapp+chat" },
+                    { id: "hld7", title: "Design Instagram (Photo Sharing)", url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/instagram", diff: "Medium", pop: 9.2, prob: 88, companies: ["Meta", "Snap"], youtube: "https://www.youtube.com/results?search_query=system+design+instagram" },
+                    { id: "hld11", title: "Design Zoom / Video Conferencing", url: "https://www.google.com/search?q=system+design+zoom", diff: "Hard", pop: 9.1, prob: 85, companies: ["Microsoft", "Zoom", "Uber"], youtube: "https://www.youtube.com/results?search_query=system+design+zoom+video+conferencing" }
+                ]
+            },
+            {
+                name: "Data Heavy Systems",
+                questions: [
+                    { id: "hld8", title: "Design YouTube", url: "https://bytebytego.com/courses/system-design-interview/design-youtube", diff: "Hard", pop: 9.4, prob: 89, companies: ["Google", "Netflix"], youtube: "https://www.youtube.com/results?search_query=system+design+youtube+video+streaming" },
+                    { id: "hld12", title: "Design Netflix", url: "https://opencredo.com/blogs/system-design-netflix/", diff: "Hard", pop: 9.5, prob: 92, companies: ["Netflix", "Amazon", "Meta"], youtube: "https://www.youtube.com/results?search_query=system+design+netflix" },
+                    { id: "hld9", title: "Design Google Drive / Cloud Storage", url: "https://bytebytego.com/courses/system-design-interview/design-google-drive", diff: "Hard", pop: 9.1, prob: 85, companies: ["Google", "Dropbox"], youtube: "https://www.youtube.com/results?search_query=system+design+google+drive" },
+                    { id: "hld10", title: "Design a Web Crawler", url: "https://bytebytego.com/courses/system-design-interview/design-a-web-crawler", diff: "Medium", pop: 8.8, prob: 80, companies: ["Google", "Amazon"], youtube: "https://www.youtube.com/results?search_query=system+design+web+crawler" }
+                ]
+            },
+            {
+                name: "Marketplaces & Booking",
+                questions: [
+                    { id: "hld13", title: "Design Uber / Ride Sharing", url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/uber", diff: "Hard", pop: 9.8, prob: 95, companies: ["Uber", "Lyft", "Amazon"], youtube: "https://www.youtube.com/results?search_query=system+design+uber" },
+                    { id: "hld14", title: "Design Amazon / E-commerce", url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/amazon", diff: "Hard", pop: 9.6, prob: 90, companies: ["Amazon", "Microsoft"], youtube: "https://www.youtube.com/results?search_query=system+design+amazon+e-commerce" },
+                    { id: "hld15", title: "Design Booking.com / Airbnb", url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/airbnb", diff: "Medium", pop: 9.3, prob: 88, companies: ["Airbnb", "Booking", "Expedia"], youtube: "https://www.youtube.com/results?search_query=system+design+airbnb+booking" }
+                ]
+            }
+        ]
+    }
+];
+
+const sdLldDb = [
+    {
+        pattern: "Object-Oriented Design (OOD)",
+        subPatterns: [
+            {
+                name: "Facility & Management Systems",
+                questions: [
+                    { id: "lld1", title: "Design a Parking Lot", url: "https://www.educative.io/courses/grokking-the-object-oriented-design-interview/gxM3gRxmr8Z", diff: "Medium", pop: 9.9, prob: 95, companies: ["Amazon", "Microsoft", "Uber"], youtube: "https://www.youtube.com/results?search_query=low+level+design+parking+lot" },
+                    { id: "lld2", title: "Design an Elevator System (Multiple Lifts)", url: "https://www.educative.io/courses/grokking-the-object-oriented-design-interview/q24vYXZrG0V", diff: "Hard", pop: 9.5, prob: 90, companies: ["Amazon", "Google"], youtube: "https://www.youtube.com/results?search_query=low+level+design+elevator" },
+                    { id: "lld3", title: "Design a Vending Machine", url: "https://www.google.com/search?q=low+level+design+vending+machine", diff: "Medium", pop: 8.8, prob: 85, companies: ["Amazon", "Apple"], youtube: "https://www.youtube.com/results?search_query=low+level+design+vending+machine" },
+                    { id: "lld4", title: "Design a Library Management System", url: "https://www.educative.io/courses/grokking-the-object-oriented-design-interview/RMlM3NgjNyR", diff: "Easy", pop: 8.5, prob: 70, companies: ["Amazon"], youtube: "https://www.youtube.com/results?search_query=low+level+design+library+management" }
+                ]
+            },
+            {
+                name: "Games & Booking",
+                questions: [
+                    { id: "lld5", title: "Design Tic-Tac-Toe", url: "https://www.google.com/search?q=low+level+design+tic+tac+toe", diff: "Easy", pop: 9.2, prob: 88, companies: ["Microsoft", "Meta"], youtube: "https://www.youtube.com/results?search_query=low+level+design+tic+tac+toe" },
+                    { id: "lld8", title: "Design a Chess Game", url: "https://www.google.com/search?q=low+level+design+chess+game", diff: "Hard", pop: 9.1, prob: 80, companies: ["Microsoft", "Amazon", "Google"], youtube: "https://www.youtube.com/results?search_query=low+level+design+chess" },
+                    { id: "lld6", title: "Design Blackjack / Card Deck", url: "https://www.educative.io/courses/grokking-the-object-oriented-design-interview/YQOqrlz0Gz5", diff: "Medium", pop: 8.6, prob: 75, companies: ["Amazon"], youtube: "https://www.youtube.com/results?search_query=low+level+design+blackjack" },
+                    { id: "lld7", title: "Design Movie Ticket Booking (BookMyShow)", url: "https://www.educative.io/courses/grokking-the-object-oriented-design-interview/qM8RZW2Z5w7", diff: "Hard", pop: 9.4, prob: 85, companies: ["Amazon", "Atlassian"], youtube: "https://www.youtube.com/results?search_query=low+level+design+bookmyshow" }
+                ]
+            },
+            {
+                name: "Apps & Services (LLD)",
+                questions: [
+                    { id: "lld9", title: "Design Splitwise", url: "https://www.google.com/search?q=low+level+design+splitwise", diff: "Medium", pop: 9.5, prob: 88, companies: ["Atlassian", "Uber", "Amazon"], youtube: "https://www.youtube.com/results?search_query=low+level+design+splitwise" },
+                    { id: "lld10", title: "Design a Food Delivery App (Swiggy/UberEats)", url: "https://www.google.com/search?q=low+level+design+food+delivery+app", diff: "Hard", pop: 9.2, prob: 85, companies: ["Uber", "Amazon"], youtube: "https://www.youtube.com/results?search_query=low+level+design+food+delivery" },
+                    { id: "lld11", title: "Design a Notification System (LLD)", url: "https://www.google.com/search?q=low+level+design+notification+system", diff: "Medium", pop: 9.4, prob: 90, companies: ["Amazon", "Microsoft"], youtube: "https://www.youtube.com/results?search_query=low+level+design+notification+system" }
+                ]
+            },
+            {
+                name: "System Components (LLD)",
+                questions: [
+                    { id: "lld12", title: "Design a Logging Framework", url: "https://www.google.com/search?q=low+level+design+logging+framework", diff: "Medium", pop: 8.9, prob: 82, companies: ["Atlassian", "Amazon"], youtube: "https://www.youtube.com/results?search_query=low+level+design+logger" },
+                    { id: "lld13", title: "Design a Rate Limiter (OOD/LLD)", url: "https://www.google.com/search?q=low+level+design+rate+limiter", diff: "Medium", pop: 9.0, prob: 85, companies: ["Stripe", "Amazon"], youtube: "https://www.youtube.com/results?search_query=low+level+design+rate+limiter" },
+                    { id: "lld14", title: "Design a URL Shortener (OOD/LLD)", url: "https://www.google.com/search?q=low+level+design+url+shortener", diff: "Easy", pop: 8.8, prob: 80, companies: ["Microsoft"], youtube: "https://www.youtube.com/results?search_query=low+level+design+url+shortener" }
+                ]
+            }
+        ]
+    }
+];
+
+const sqlTopDb = [
+    {
+        pattern: "Select",
+        subPatterns: [
+            {
+                name: "Basic Querying",
+                questions: [
+                    { id: "tsql1", title: "Recyclable and Low Fat Products", url: "https://leetcode.com/problems/recyclable-and-low-fat-products/", diff: "Easy", pop: 9.5, prob: 85, companies: ["Amazon", "Meta"] },
+                    { id: "tsql2", title: "Find Customer Referee", url: "https://leetcode.com/problems/find-customer-referee/", diff: "Easy", pop: 9.2, prob: 80, companies: ["Amazon", "Apple"] },
+                    { id: "tsql3", title: "Big Countries", url: "https://leetcode.com/problems/big-countries/", diff: "Easy", pop: 9.0, prob: 75, companies: ["Amazon"] },
+                    { id: "tsql4", title: "Article Views I", url: "https://leetcode.com/problems/article-views-i/", diff: "Easy", pop: 9.1, prob: 78, companies: ["LinkedIn"] },
+                    { id: "tsql5", title: "Invalid Tweets", url: "https://leetcode.com/problems/invalid-tweets/", diff: "Easy", pop: 8.9, prob: 70, companies: ["Twitter"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Basic Joins",
+        subPatterns: [
+            {
+                name: "Inner & Left Joins",
+                questions: [
+                    { id: "tsql6", title: "Replace Employee ID With The Unique Identifier", url: "https://leetcode.com/problems/replace-employee-id-with-the-unique-identifier/", diff: "Easy", pop: 9.0, prob: 82, companies: ["Amazon"] },
+                    { id: "tsql7", title: "Product Sales Analysis I", url: "https://leetcode.com/problems/product-sales-analysis-i/", diff: "Easy", pop: 9.1, prob: 80, companies: ["Amazon"] },
+                    { id: "tsql8", title: "Customer Who Visited but Did Not Make Any Transactions", url: "https://leetcode.com/problems/customer-who-visited-but-did-not-make-any-transactions/", diff: "Easy", pop: 9.4, prob: 88, companies: ["Amazon", "Apple"] },
+                    { id: "tsql9", title: "Rising Temperature", url: "https://leetcode.com/problems/rising-temperature/", diff: "Easy", pop: 9.3, prob: 85, companies: ["Amazon", "Google"] },
+                    { id: "tsql10", title: "Average Time of Process per Machine", url: "https://leetcode.com/problems/average-time-of-process-per-machine/", diff: "Easy", pop: 9.0, prob: 82, companies: ["Meta"] },
+                    { id: "tsql11", title: "Employee Bonus", url: "https://leetcode.com/problems/employee-bonus/", diff: "Easy", pop: 8.8, prob: 75, companies: ["Amazon"] },
+                    { id: "tsql12", title: "Students and Examinations", url: "https://leetcode.com/problems/students-and-examinations/", diff: "Easy", pop: 8.9, prob: 80, companies: ["Amazon"] },
+                    { id: "tsql13", title: "Managers with at Least 5 Direct Reports", url: "https://leetcode.com/problems/managers-with-at-least-5-direct-reports/", diff: "Medium", pop: 9.5, prob: 90, companies: ["Amazon", "Bloomberg"] },
+                    { id: "tsql14", title: "Confirmation Rate", url: "https://leetcode.com/problems/confirmation-rate/", diff: "Medium", pop: 9.2, prob: 85, companies: ["Amazon", "Meta"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Basic Aggregate Functions",
+        subPatterns: [
+            {
+                name: "Group By & Math",
+                questions: [
+                    { id: "tsql15", title: "Not Boring Movies", url: "https://leetcode.com/problems/not-boring-movies/", diff: "Easy", pop: 8.7, prob: 70, companies: ["Amazon"] },
+                    { id: "tsql16", title: "Average Selling Price", url: "https://leetcode.com/problems/average-selling-price/", diff: "Easy", pop: 8.9, prob: 78, companies: ["Amazon", "Meta"] },
+                    { id: "tsql17", title: "Project Employees I", url: "https://leetcode.com/problems/project-employees-i/", diff: "Easy", pop: 9.0, prob: 80, companies: ["Meta", "Amazon"] },
+                    { id: "tsql18", title: "Percentage of Users Attended a Contest", url: "https://leetcode.com/problems/percentage-of-users-attended-a-contest/", diff: "Easy", pop: 8.8, prob: 75, companies: ["Apple"] },
+                    { id: "tsql19", title: "Queries Quality and Percentage", url: "https://leetcode.com/problems/queries-quality-and-percentage/", diff: "Easy", pop: 9.1, prob: 82, companies: ["Meta"] },
+                    { id: "tsql20", title: "Monthly Transactions I", url: "https://leetcode.com/problems/monthly-transactions-i/", diff: "Medium", pop: 9.3, prob: 88, companies: ["Stripe", "Amazon"] },
+                    { id: "tsql21", title: "Immediate Food Delivery II", url: "https://leetcode.com/problems/immediate-food-delivery-ii/", diff: "Medium", pop: 9.2, prob: 85, companies: ["DoorDash", "Uber"] },
+                    { id: "tsql22", title: "Game Play Analysis IV", url: "https://leetcode.com/problems/game-play-analysis-iv/", diff: "Medium", pop: 9.5, prob: 90, companies: ["Amazon", "Apple"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Sorting and Grouping",
+        subPatterns: [
+            {
+                name: "Having & Order By",
+                questions: [
+                    { id: "tsql23", title: "Number of Unique Subjects Taught by Each Teacher", url: "https://leetcode.com/problems/number-of-unique-subjects-taught-by-each-teacher/", diff: "Easy", pop: 9.0, prob: 80, companies: ["Amazon"] },
+                    { id: "tsql24", title: "User Activity for the Past 30 Days I", url: "https://leetcode.com/problems/user-activity-for-the-past-30-days-i/", diff: "Easy", pop: 8.9, prob: 75, companies: ["Meta"] },
+                    { id: "tsql25", title: "Product Sales Analysis III", url: "https://leetcode.com/problems/product-sales-analysis-iii/", diff: "Medium", pop: 9.1, prob: 85, companies: ["Amazon"] },
+                    { id: "tsql26", title: "Classes More Than 5 Students", url: "https://leetcode.com/problems/classes-more-than-5-students/", diff: "Easy", pop: 8.8, prob: 72, companies: ["Amazon"] },
+                    { id: "tsql27", title: "Find Followers Count", url: "https://leetcode.com/problems/find-followers-count/", diff: "Easy", pop: 9.2, prob: 82, companies: ["Twitter", "Meta"] },
+                    { id: "tsql28", title: "Biggest Single Number", url: "https://leetcode.com/problems/biggest-single-number/", diff: "Easy", pop: 8.7, prob: 70, companies: ["Amazon"] },
+                    { id: "tsql29", title: "Customers Who Bought All Products", url: "https://leetcode.com/problems/customers-who-bought-all-products/", diff: "Medium", pop: 9.4, prob: 88, companies: ["Amazon", "Microsoft"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Advanced Select and Joins",
+        subPatterns: [
+            {
+                name: "Complex Logic & CTEs",
+                questions: [
+                    { id: "tsql30", title: "The Number of Employees Which Report to Each Employee", url: "https://leetcode.com/problems/the-number-of-employees-which-report-to-each-employee/", diff: "Easy", pop: 9.3, prob: 86, companies: ["Amazon", "Google"] },
+                    { id: "tsql31", title: "Primary Department for Each Employee", url: "https://leetcode.com/problems/primary-department-for-each-employee/", diff: "Easy", pop: 9.0, prob: 80, companies: ["Meta"] },
+                    { id: "tsql32", title: "Triangle Judgement", url: "https://leetcode.com/problems/triangle-judgement/", diff: "Easy", pop: 8.5, prob: 70, companies: ["Apple"] },
+                    { id: "tsql33", title: "Consecutive Numbers", url: "https://leetcode.com/problems/consecutive-numbers/", diff: "Medium", pop: 9.6, prob: 92, companies: ["Amazon", "Meta"] },
+                    { id: "tsql34", title: "Product Price at a Given Date", url: "https://leetcode.com/problems/product-price-at-a-given-date/", diff: "Medium", pop: 9.2, prob: 85, companies: ["Amazon", "Microsoft"] },
+                    { id: "tsql35", title: "Last Person to Fit in the Bus", url: "https://leetcode.com/problems/last-person-to-fit-in-the-bus/", diff: "Medium", pop: 9.5, prob: 88, companies: ["Amazon", "Uber"] },
+                    { id: "tsql36", title: "Count Salary Categories", url: "https://leetcode.com/problems/count-salary-categories/", diff: "Medium", pop: 9.4, prob: 87, companies: ["Bloomberg", "Amazon"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Subqueries",
+        subPatterns: [
+            {
+                name: "Nested Queries & Filtering",
+                questions: [
+                    { id: "tsql37", title: "Employees Whose Manager Left the Company", url: "https://leetcode.com/problems/employees-whose-manager-left-the-company/", diff: "Easy", pop: 9.0, prob: 80, companies: ["Meta", "Amazon"] },
+                    { id: "tsql38", title: "Exchange Seats", url: "https://leetcode.com/problems/exchange-seats/", diff: "Medium", pop: 9.4, prob: 89, companies: ["Amazon"] },
+                    { id: "tsql39", title: "Movie Rating", url: "https://leetcode.com/problems/movie-rating/", diff: "Medium", pop: 9.2, prob: 85, companies: ["Netflix", "Amazon"] },
+                    { id: "tsql40", title: "Restaurant Growth", url: "https://leetcode.com/problems/restaurant-growth/", diff: "Medium", pop: 9.5, prob: 90, companies: ["DoorDash", "Amazon"] },
+                    { id: "tsql41", title: "Friend Requests II: Who Has the Most Friends", url: "https://leetcode.com/problems/friend-requests-ii-who-has-the-most-friends/", diff: "Medium", pop: 9.3, prob: 88, companies: ["Meta", "Amazon"] },
+                    { id: "tsql42", title: "Investments in 2016", url: "https://leetcode.com/problems/investments-in-2016/", diff: "Medium", pop: 9.1, prob: 85, companies: ["Amazon", "Bloomberg"] },
+                    { id: "tsql43", title: "Department Top Three Salaries", url: "https://leetcode.com/problems/department-top-three-salaries/", diff: "Hard", pop: 9.8, prob: 95, companies: ["Amazon", "Google", "Microsoft"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Advanced String Functions / Regex / Clause",
+        subPatterns: [
+            {
+                name: "String Manipulations",
+                questions: [
+                    { id: "tsql44", title: "Fix Names in a Table", url: "https://leetcode.com/problems/fix-names-in-a-table/", diff: "Easy", pop: 9.0, prob: 80, companies: ["Amazon"] },
+                    { id: "tsql45", title: "Patients With a Condition", url: "https://leetcode.com/problems/patients-with-a-condition/", diff: "Easy", pop: 8.8, prob: 75, companies: ["Google", "Amazon"] },
+                    { id: "tsql46", title: "Delete Duplicate Emails", url: "https://leetcode.com/problems/delete-duplicate-emails/", diff: "Easy", pop: 9.3, prob: 85, companies: ["Uber", "Apple"] },
+                    { id: "tsql47", title: "Second Highest Salary", url: "https://leetcode.com/problems/second-highest-salary/", diff: "Medium", pop: 9.9, prob: 96, companies: ["Amazon", "Meta", "Google"] },
+                    { id: "tsql48", title: "Group Sold Products By The Date", url: "https://leetcode.com/problems/group-sold-products-by-the-date/", diff: "Easy", pop: 9.1, prob: 82, companies: ["Amazon"] },
+                    { id: "tsql49", title: "List the Products Ordered in a Period", url: "https://leetcode.com/problems/list-the-products-ordered-in-a-period/", diff: "Easy", pop: 8.9, prob: 78, companies: ["Amazon"] },
+                    { id: "tsql50", title: "Find Users With Valid E-Mails", url: "https://leetcode.com/problems/find-users-with-valid-e-mails/", diff: "Easy", pop: 9.2, prob: 85, companies: ["Amazon", "Microsoft"] }
+                ]
+            }
+        ]
+    }
+];
+
+const sqlTheoryDb = [
+    {
+        pattern: "Core Database Concepts",
+        subPatterns: [
+            {
+                name: "Transactions & Architecture",
+                questions: [
+                    { id: "dbth1", title: "What are ACID Properties?", url: "https://www.google.com/search?q=what+are+acid+properties", diff: "Medium", pop: 9.9, prob: 98, companies: ["Amazon", "Microsoft", "Google", "Meta"] },
+                    { id: "dbth2", title: "Database Normalization (1NF, 2NF, 3NF, BCNF)", url: "https://www.google.com/search?q=database+normalization+explained", diff: "Medium", pop: 9.8, prob: 95, companies: ["Amazon", "Apple", "Uber"] },
+                    { id: "dbth3", title: "SQL vs NoSQL: When to use which?", url: "https://www.google.com/search?q=sql+vs+nosql", diff: "Medium", pop: 9.7, prob: 96, companies: ["Meta", "Amazon", "Netflix"] },
+                    { id: "dbth4", title: "What is a CAP Theorem?", url: "https://www.google.com/search?q=cap+theorem+explained", diff: "Hard", pop: 9.5, prob: 90, companies: ["Google", "Meta", "Uber"] }
+                ]
+            }
+        ]
+    },
+    {
+        pattern: "Performance & Concurrency",
+        subPatterns: [
+            {
+                name: "Optimization Techniques",
+                questions: [
+                    { id: "dbth5", title: "Explain Database Indexing (B-Trees vs Hash Indexes)", url: "https://www.google.com/search?q=database+indexing+b-trees", diff: "Hard", pop: 9.9, prob: 97, companies: ["Google", "Amazon", "Microsoft"] },
+                    { id: "dbth6", title: "What are Transaction Isolation Levels?", url: "https://www.google.com/search?q=transaction+isolation+levels", diff: "Hard", pop: 9.6, prob: 92, companies: ["Amazon", "Google", "Stripe"] },
+                    { id: "dbth7", title: "Database Sharding vs Partitioning", url: "https://www.google.com/search?q=database+sharding+vs+partitioning", diff: "Medium", pop: 9.4, prob: 88, companies: ["Meta", "Uber"] },
+                    { id: "dbth8", title: "Optimistic vs Pessimistic Locking", url: "https://www.google.com/search?q=optimistic+vs+pessimistic+locking", diff: "Hard", pop: 9.2, prob: 85, companies: ["Amazon", "Stripe", "Apple"] }
+                ]
+            }
+        ]
+    }
+];
+
+/**
+ * ============================================================================
+ * STATE MANAGEMENT & RPG TREE DATA
+ * ============================================================================
+ */
+const state = {
+    mainTab: 'dashboard', // 'dashboard' | 'dsa' | 'sd' | 'sql' | 'behavioral'
+    viewMode: 'tree',     // 'tree' | 'list'
+    sdSubTab: 'hld',      // 'hld' | 'lld'
+    sqlSubTab: 'topSql',  // 'topSql' | 'dbTheory'
+    searchQuery: '',
+    groupBy: 'pattern',
+    sortBy: 'default',
+    completed: new Set(JSON.parse(localStorage.getItem('dsa_completed') || '[]'))
+};
+
+const diffVal = { "Easy": 1, "Medium": 2, "Hard": 3 };
+
+// RPG Tree Dependencies Mapping
+const dsaDependencies = {
+    "Arrays & Hashing": [],
+    "Linked List": [],
+    "Math & Geometry": [],
+    "Bit Manipulation": [],
+    "Two Pointers": ["Arrays & Hashing"],
+    "Stack": ["Arrays & Hashing"],
+    "Binary Search": ["Arrays & Hashing"],
+    "Trees": ["Linked List"],
+    "Greedy": ["Arrays & Hashing"],
+    "Intervals": ["Arrays & Hashing"],
+    "Sliding Window": ["Two Pointers"],
+    "Tries": ["Trees"],
+    "Heap / Priority Queue": ["Trees"],
+    "Backtracking": ["Trees"],
+    "Graphs": ["Trees", "Backtracking"],
+    "1-D Dynamic Programming": ["Trees", "Backtracking"],
+    "Advanced Graphs": ["Graphs"],
+    "2-D Dynamic Programming": ["1-D Dynamic Programming"]
+};
+
+// Layout tiers for rendering visually
+const dsaTiers = [
+    ["Arrays & Hashing", "Linked List", "Math & Geometry", "Bit Manipulation"],
+    ["Two Pointers", "Stack", "Binary Search", "Trees", "Greedy", "Intervals"],
+    ["Sliding Window", "Tries", "Heap / Priority Queue", "Backtracking"],
+    ["Graphs", "1-D Dynamic Programming"],
+    ["Advanced Graphs", "2-D Dynamic Programming"]
+];
+
+const sdDependencies = {
+    "Distributed Systems Fundamentals": [],
+    "Object-Oriented Design (OOD)": [],
+    "Real-world Architectures": ["Distributed Systems Fundamentals"]
+};
+
+const sdTiers = [
+    ["Distributed Systems Fundamentals", "Object-Oriented Design (OOD)"],
+    ["Real-world Architectures"]
+];
+
+const sqlDependencies = {
+    "Select": [],
+    "Core Database Concepts": [],
+    "Basic Joins": ["Select"],
+    "Basic Aggregate Functions": ["Select"],
+    "Sorting and Grouping": ["Basic Aggregate Functions"],
+    "Advanced Select and Joins": ["Basic Joins"],
+    "Subqueries": ["Advanced Select and Joins"],
+    "Advanced String Functions / Regex / Clause": ["Select"],
+    "Performance & Concurrency": ["Core Database Concepts"]
+};
+
+const sqlTiers = [
+    ["Select", "Core Database Concepts"],
+    ["Basic Joins", "Basic Aggregate Functions"],
+    ["Sorting and Grouping", "Performance & Concurrency"],
+    ["Advanced Select and Joins", "Subqueries"],
+    ["Advanced String Functions / Regex / Clause"]
+];
+
+const patternIcons = {
+    "Arrays & Hashing": "📚", "Linked List": "🔗", "Math & Geometry": "🧮", "Bit Manipulation": "0️⃣",
+    "Two Pointers": "↔️", "Stack": "🥞", "Binary Search": "🔍", "Trees": "🌳", "Greedy": "🤑", "Intervals": "⏳",
+    "Sliding Window": "🪟", "Tries": "🌲", "Heap / Priority Queue": "⛰️", "Backtracking": "🔙",
+    "Graphs": "🕸️", "1-D Dynamic Programming": "🧠", "Advanced Graphs": "🌌", "2-D Dynamic Programming": "🚀",
+    "Distributed Systems Fundamentals": "🌐", "Object-Oriented Design (OOD)": "🏗️", "Real-world Architectures": "🏙️",
+    "Select": "📝", "Basic Joins": "🔗", "Basic Aggregate Functions": "📊", "Sorting and Grouping": "🗂️",
+    "Advanced Select and Joins": "🧬", "Subqueries": "🔍", "Advanced String Functions / Regex / Clause": "🔤",
+    "Core Database Concepts": "🧠", "Performance & Concurrency": "⚡"
+};
+
+// Global for drawing lines accurately
+window.nodeStatus = {};
+
+function getActiveDB() {
+    if (state.mainTab === 'dsa') return db;
+    if (state.mainTab === 'sd' && state.sdSubTab === 'hld') return sdHldDb;
+    if (state.mainTab === 'sd' && state.sdSubTab === 'lld') return sdLldDb;
+    if (state.mainTab === 'sql' && state.sqlSubTab === 'topSql') return sqlTopDb;
+    if (state.mainTab === 'sql' && state.sqlSubTab === 'dbTheory') return sqlTheoryDb;
+    return db;
+}
+
+function getFlatQuestions() {
+    let flat = [];
+    const activeDb = getActiveDB();
+    activeDb.forEach(pattern => {
+        pattern.subPatterns.forEach(sub => {
+            sub.questions.forEach(q => { flat.push({...q, patternName: pattern.pattern, subPatternName: sub.name}); });
+        });
+    });
+    return flat;
+}
+
+function sortAndFilterQuestions(questions) {
+    let filtered = questions;
+    if (state.searchQuery) {
+        const query = state.searchQuery.toLowerCase();
+        filtered = filtered.filter(q => q.title.toLowerCase().includes(query) || q.patternName.toLowerCase().includes(query) || q.companies.some(c => c.toLowerCase().includes(query)));
+    }
+    if (state.sortBy !== 'default') {
+        filtered.sort((a, b) => {
+            switch (state.sortBy) {
+                case 'prob-desc': return b.prob - a.prob;
+                case 'pop-desc': return b.pop - a.pop;
+                case 'diff-asc': return diffVal[a.diff] - diffVal[b.diff];
+                default: return 0;
+            }
+        });
+    }
+    return filtered;
+}
+
+/**
+ * ============================================================================
+ * DOM RENDER ENGINE
+ * ============================================================================
+ */
+const DOM = {
+    canvas: document.getElementById('dataCanvas'),
+    treeCanvas: document.getElementById('treeCanvas'),
+    searchInput: document.getElementById('searchInput'),
+    groupBySelect: document.getElementById('groupBySelect'),
+    sortBySelect: document.getElementById('sortBySelect'),
+    exportBtn: document.getElementById('exportBtn'),
+    aiStudyPlanBtn: document.getElementById('aiStudyPlanBtn'),
+    aiModal: document.getElementById('aiModal'),
+    aiModalTitle: document.getElementById('aiModalTitle'),
+    aiModalBody: document.getElementById('aiModalBody'),
+    aiLoader: document.getElementById('aiLoader'),
+    closeModalBtn: document.getElementById('closeModalBtn')
+};
+
+function createBadge(diff) { return `<span class="badge ${diff.toLowerCase()}">${diff}</span>`; }
+
+function createMetricBar(val, max, colorClass, isPercent = false) {
+    const percentage = (val / max) * 100;
+    const color = percentage > 80 ? 'var(--accent-success)' : percentage > 50 ? 'var(--accent-warning)' : 'var(--accent-danger)';
+    return `
+        <div style="display: flex; align-items: center;">
+            <div class="metric-bar-container"><div class="metric-bar-fill" style="width: ${percentage}%; background: ${color};"></div></div>
+            <span class="metric-value">${val}${isPercent ? '%' : '/10'}</span>
+        </div>`;
+}
+
+function createCompanyTags(companies) { return companies.map(c => `<span class="company-tag">${c}</span>`).join(''); }
+
+window.toggleComplete = function(id, checkboxElement) {
+    if (checkboxElement.checked) {
+        state.completed.add(id);
+        checkboxElement.closest('tr').classList.add('row-completed');
+    } else {
+        state.completed.delete(id);
+        checkboxElement.closest('tr').classList.remove('row-completed');
+    }
+    try { localStorage.setItem('dsa_completed', JSON.stringify([...state.completed])); } catch(e) {}
+    updateProgress();
+    updateDashboardStats();
+    
+    if (['dsa', 'sd', 'sql'].includes(state.mainTab) && state.viewMode === 'tree') {
+        renderTreeView(); // Refresh the visual tree node percentages live behind the modal
+    }
+};
+
+function updateReadinessHeatmap() {
+    const allQs = [];
+    [db, sdHldDb, sdLldDb, sqlTopDb, sqlTheoryDb].forEach(database => {
+        database.forEach(pattern => {
+            pattern.subPatterns.forEach(sub => {
+                allQs.push(...sub.questions);
+            });
+        });
+    });
+
+    const targets = ["Amazon", "Google", "Meta", "Microsoft", "Apple"];
+    const readinessData = targets.map(company => {
+        const companyQs = allQs.filter(q => q.companies.includes(company));
+        let totalWeight = 0;
+        let completedWeight = 0;
+
+        companyQs.forEach(q => {
+            const weight = q.prob || 50; 
+            totalWeight += weight;
+            if (state.completed.has(q.id)) {
+                completedWeight += weight;
+            }
+        });
+
+        const pct = totalWeight === 0 ? 0 : Math.round((completedWeight / totalWeight) * 100);
+        return { company, pct, totalQs: companyQs.length, completedQs: companyQs.filter(q => state.completed.has(q.id)).length };
+    }).sort((a, b) => b.pct - a.pct);
+
+    const container = document.getElementById('readinessHeatmapContainer');
+    if (!container) return;
+
+    container.innerHTML = readinessData.map(data => {
+        let colorVar = 'var(--accent-danger)';
+        let statusText = 'Not Ready';
+        
+        if (data.pct >= 80) {
+            colorVar = 'var(--accent-success)';
+            statusText = 'Interview Ready';
+        } else if (data.pct >= 50) {
+            colorVar = 'var(--accent-warning)';
+            statusText = 'Needs Practice';
+        }
+
+        return `
+            <div class="readiness-card">
+                <div class="readiness-header">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <strong style="font-size: 1.1rem; color: var(--text-primary);">${data.company}</strong>
+                        <span style="font-size: 0.75rem; color: ${colorVar}; background: color-mix(in srgb, ${colorVar} 15%, transparent); padding: 4px 8px; border-radius: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">${statusText}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 1.2rem; font-weight: 800; color: ${colorVar};">${data.pct}%</span>
+                    </div>
+                </div>
+                <div class="readiness-track">
+                    <div class="readiness-fill" style="width: ${data.pct}%; background: ${colorVar}; box-shadow: 0 0 10px ${colorVar};"></div>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                    You are <strong>${data.pct}%</strong> statistically ready to pass the ${data.company} loop. (${data.completedQs}/${data.totalQs} core patterns mastered)
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+
+function updateDashboardStats() {
+    const getStats = (databaseArray) => {
+        let total = 0, completed = 0;
+        databaseArray.forEach(pattern => pattern.subPatterns.forEach(sub => sub.questions.forEach(q => {
+            total++; if(state.completed.has(q.id)) completed++;
+        })));
+        return { total, completed };
+    };
+
+    const dsaStats = getStats(db);
+    const sdStats = { total: getStats(sdHldDb).total + getStats(sdLldDb).total, completed: getStats(sdHldDb).completed + getStats(sdLldDb).completed };
+    const sqlStats = { total: getStats(sqlTopDb).total + getStats(sqlTheoryDb).total, completed: getStats(sqlTopDb).completed + getStats(sqlTheoryDb).completed };
+
+    const overallTotal = dsaStats.total + sdStats.total + sqlStats.total;
+    const overallCompleted = dsaStats.completed + sdStats.completed + sqlStats.completed;
+
+    const dsaPct = dsaStats.total === 0 ? 0 : Math.round((dsaStats.completed / dsaStats.total) * 100);
+    const sdPct = sdStats.total === 0 ? 0 : Math.round((sdStats.completed / sdStats.total) * 100);
+    const sqlPct = sqlStats.total === 0 ? 0 : Math.round((sqlStats.completed / sqlStats.total) * 100);
+    const overallPct = overallTotal === 0 ? 0 : Math.round((overallCompleted / overallTotal) * 100);
+
+    const elDashDsaRing = document.getElementById('dashDsaRing');
+    if (elDashDsaRing) {
+        document.getElementById('dashDsaPercentText').textContent = `${dsaPct}%`;
+        elDashDsaRing.style.strokeDashoffset = 176 - (dsaPct / 100) * 176;
+        document.getElementById('dashSdPercentText').textContent = `${sdPct}%`;
+        document.getElementById('dashSdRing').style.strokeDashoffset = 176 - (sdPct / 100) * 176;
+        document.getElementById('dashSqlPercentText').textContent = `${sqlPct}%`;
+        document.getElementById('dashSqlRing').style.strokeDashoffset = 176 - (sqlPct / 100) * 176;
+        document.getElementById('dashOverallPercent').textContent = overallPct;
+        const ring = document.getElementById('dashOverallRing');
+        if (ring) ring.style.strokeDashoffset = 264 - (overallPct / 100) * 264;
+    }
+
+    updateReadinessHeatmap();
+}
+
+function updateProgress() {
+    const activeQuestions = getFlatQuestions();
+    const total = activeQuestions.length;
+    
+    let completedInTab = 0;
+    let stats = {
+        Easy: { total: 0, done: 0 },
+        Medium: { total: 0, done: 0 },
+        Hard: { total: 0, done: 0 }
+    };
+
+    activeQuestions.forEach(q => {
+        // Fallback to Medium if difficulty string is missing or malformed
+        const diff = stats[q.diff] ? q.diff : 'Medium';
+        stats[diff].total++;
+        if (state.completed.has(q.id)) {
+            stats[diff].done++;
+            completedInTab++;
+        }
+    });
+    
+    // 1. Update text elements
+    const eStat = document.getElementById('statEasy');
+    if (eStat) eStat.textContent = `${stats.Easy.done}/${stats.Easy.total}`;
+    const mStat = document.getElementById('statMed');
+    if (mStat) mStat.textContent = `${stats.Medium.done}/${stats.Medium.total}`;
+    const hStat = document.getElementById('statHard');
+    if (hStat) hStat.textContent = `${stats.Hard.done}/${stats.Hard.total}`;
+
+    const percentText = document.getElementById('progressPercent');
+    if(percentText) {
+        percentText.innerHTML = `${completedInTab}<span>/${total}</span>`;
+    }
+
+    // 2. Update multi-segment SVG ring
+    const rEasy = document.getElementById('ringEasy');
+    const rMed = document.getElementById('ringMed');
+    const rHard = document.getElementById('ringHard');
+    
+    if (rEasy && rMed && rHard) {
+        const circumference = 201.06; // 2 * pi * r (where r=32)
+        
+        if (total === 0) {
+            rEasy.style.strokeDasharray = `0 ${circumference}`;
+            rMed.style.strokeDasharray = `0 ${circumference}`;
+            rHard.style.strokeDasharray = `0 ${circumference}`;
+            return;
+        }
+
+        const easyLen = (stats.Easy.done / total) * circumference;
+        const medLen = (stats.Medium.done / total) * circumference;
+        const hardLen = (stats.Hard.done / total) * circumference;
+
+        rEasy.style.strokeDasharray = `${easyLen} ${circumference}`;
+        rEasy.style.strokeDashoffset = 0;
+
+        rMed.style.strokeDasharray = `${medLen} ${circumference}`;
+        rMed.style.strokeDashoffset = -easyLen; // Pushes stroke forward
+
+        rHard.style.strokeDasharray = `${hardLen} ${circumference}`;
+        rHard.style.strokeDashoffset = -(easyLen + medLen); // Pushes stroke forward
+    }
+}
+
+function createTableRow(q, includePatternColumn = false, isSD = false) {
+    const isCompleted = state.completed.has(q.id);
+    const sdCols = isSD ? `<td>${q.youtube ? `<a href="${q.youtube}" target="_blank" class="q-link" style="color: var(--accent-primary);">▶️ Video</a>` : '-'}</td>` : '';
+
+    return `
+        <tr class="${isCompleted ? 'row-completed' : ''}">
+            <td style="text-align: center;"><input type="checkbox" class="status-checkbox" onchange="toggleComplete('${q.id}', this)" ${isCompleted ? 'checked' : ''} aria-label="Mark as complete"></td>
+            <td><a href="${q.url}" target="_blank" class="q-link">${q.title}</a></td>
+            ${includePatternColumn ? `<td style="color: var(--text-secondary); font-size: 0.85rem;">${q.patternName}</td>` : ''}
+            <td>${createBadge(q.diff)}</td>
+            <td>${createMetricBar(q.pop, 10, 'var(--accent-primary)')}</td>
+            <td>${createMetricBar(q.prob, 100, 'var(--accent-success)', true)}</td>
+            <td>${createCompanyTags(q.companies)}</td>
+            ${sdCols}
+            <td><button class="ai-btn ai-btn-small" onclick="requestAIHint('${q.title}', '${q.patternName}')">✨ Hint</button></td>
+        </tr>`;
+}
+
+function renderPatternView() {
+    const fragment = document.createDocumentFragment();
+    let hasResults = false;
+    const activeDb = getActiveDB();
+    const isSD = state.mainTab === 'sd';
+
+    activeDb.forEach(pattern => {
+        const processedSubPatterns = pattern.subPatterns.map(sub => {
+            const enhancedQs = sub.questions.map(q => ({...q, patternName: pattern.pattern, subPatternName: sub.name}));
+            return { name: sub.name, questions: sortAndFilterQuestions(enhancedQs) };
+        }).filter(sub => sub.questions.length > 0);
+
+        if (processedSubPatterns.length === 0) return;
+        hasResults = true;
+
+        const detailsEl = document.createElement('details');
+        detailsEl.className = 'group-container';
+        detailsEl.open = true;
+
+        let html = `<summary>${pattern.pattern} <span style="font-size:0.85rem; font-weight:normal; color:var(--text-secondary)">(${processedSubPatterns.reduce((acc, sub) => acc + sub.questions.length, 0)} questions)</span></summary>`;
+
+        processedSubPatterns.forEach(sub => {
+            html += `<div class="sub-group"><h4>${sub.name}</h4><div class="data-table-wrapper"><table>
+                            <thead><tr><th style="width: 5%; text-align: center;">Done</th><th style="width: 25%">Question</th><th style="width: 10%">Difficulty</th><th style="width: 15%">Popularity</th><th style="width: 15%">Interview Prob.</th><th style="width: 20%">Target Companies</th>${isSD ? `<th style="width: 10%">YouTube</th>` : ''}<th style="width: 10%">AI</th></tr></thead>
+                            <tbody>${sub.questions.map(q => createTableRow(q, false, isSD)).join('')}</tbody>
+                        </table></div></div>`;
+        });
+        detailsEl.innerHTML = html;
+        fragment.appendChild(detailsEl);
+    });
+    if (!hasResults) fragment.innerHTML = `<div class="empty-state">No questions found matching your criteria.</div>`;
+    DOM.canvas.appendChild(fragment);
+}
+
+function renderCompanyView() {
+    const fragment = document.createDocumentFragment();
+    const flatQs = sortAndFilterQuestions(getFlatQuestions());
+    const isSD = state.mainTab === 'sd';
+    const companyMap = {};
+    flatQs.forEach(q => { q.companies.forEach(company => { if (!companyMap[company]) companyMap[company] = []; companyMap[company].push(q); }); });
+
+    const sortedCompanies = Object.keys(companyMap).sort();
+    if (sortedCompanies.length === 0) { DOM.canvas.innerHTML = `<div class="empty-state">No questions found matching your criteria.</div>`; return; }
+
+    sortedCompanies.forEach(company => {
+        const detailsEl = document.createElement('details');
+        detailsEl.className = 'group-container';
+        detailsEl.open = true;
+        const questionsHTML = companyMap[company].map(q => createTableRow(q, true, isSD)).join('');
+        detailsEl.innerHTML = `<summary>${company} <span style="font-size:0.85rem; font-weight:normal; color:var(--text-secondary)">(${companyMap[company].length} questions)</span></summary>
+            <div class="data-table-wrapper"><table>
+                    <thead><tr><th style="width: 5%; text-align: center;">Done</th><th style="width: 20%">Question</th><th style="width: 15%">Pattern</th><th style="width: 10%">Difficulty</th><th style="width: 10%">Popularity</th><th style="width: 15%">Interview Prob.</th><th style="width: 15%">All Companies</th>${isSD ? `<th style="width: 10%">YouTube</th>` : ''}<th style="width: 10%">AI</th></tr></thead>
+                    <tbody>${questionsHTML}</tbody>
+                </table></div>`;
+        fragment.appendChild(detailsEl);
+    });
+    DOM.canvas.appendChild(fragment);
+}
+
+/**
+ * ============================================================================
+ * RPG SKILL TREE LOGIC
+ * ============================================================================
+ */
+function calculatePatternMastery() {
+    const patternStats = {};
+    const currentDb = state.mainTab === 'dsa' ? db : (state.mainTab === 'sd' ? [...sdHldDb, ...sdLldDb] : [...sqlTopDb, ...sqlTheoryDb]);
+    currentDb.forEach(pattern => {
+        let total = 0, completed = 0;
+        pattern.subPatterns.forEach(sub => sub.questions.forEach(q => { total++; if(state.completed.has(q.id)) completed++; }));
+        patternStats[pattern.pattern] = { total, completed, pct: total===0 ? 0 : Math.round((completed/total)*100) };
+    });
+    return patternStats;
+}
+
+function renderTreeView() {
+    DOM.treeCanvas.innerHTML = `<div class="tree-container" id="treeContainer"><div class="tree-scroll-wrapper" id="treeScrollWrapper"><svg id="treeSvg"></svg><div id="treeTiers"></div></div></div>`;
+    const treeTiersEl = document.getElementById('treeTiers');
+    const patternStats = calculatePatternMastery();
+    
+    let activeDependencies, activeTiers;
+    if (state.mainTab === 'dsa') { activeDependencies = dsaDependencies; activeTiers = dsaTiers; }
+    else if (state.mainTab === 'sd') { activeDependencies = sdDependencies; activeTiers = sdTiers; }
+    else if (state.mainTab === 'sql') { activeDependencies = sqlDependencies; activeTiers = sqlTiers; }
+    
+    // Evaluate Unlock Status top-down
+    activeTiers.flat().forEach(p => {
+        const stats = patternStats[p] || { pct: 0 };
+        const prereqs = activeDependencies[p] || [];
+        const isMastered = stats.pct >= 80;
+        const prereqsMet = prereqs.every(req => patternStats[req] && patternStats[req].pct >= 80);
+
+        if (!prereqsMet) window.nodeStatus[p] = 'locked';
+        else if (isMastered) window.nodeStatus[p] = 'mastered';
+        else window.nodeStatus[p] = 'unlocked';
+    });
+
+    activeTiers.forEach((tier) => {
+        const tierRow = document.createElement('div');
+        tierRow.className = 'tree-tier';
+        tier.forEach(p => {
+            const status = window.nodeStatus[p];
+            const stats = patternStats[p] || { pct: 0 };
+            const node = document.createElement('div');
+            node.className = `skill-node ${status}`;
+            node.id = `node-${p.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            node.innerHTML = `
+                <div class="node-icon">${patternIcons[p] || '🧩'}</div>
+                <div class="node-title">${p}</div>
+                <div class="node-pct">${stats.pct}%</div>
+                ${status === 'locked' ? '<div class="node-lock">🔒</div>' : ''}
+            `;
+            node.onclick = () => handleNodeClick(p, status, activeDependencies);
+            tierRow.appendChild(node);
+        });
+        treeTiersEl.appendChild(tierRow);
+    });
+
+    setTimeout(drawTreeLines, 50); // allow DOM layout reflow before SVG plotting
+}
+
+function drawTreeLines() {
+    const svg = document.getElementById('treeSvg');
+    const container = document.getElementById('treeScrollWrapper');
+    if(!svg || !container) return;
+    svg.innerHTML = '';
+    
+    let activeDependencies;
+    if (state.mainTab === 'dsa') activeDependencies = dsaDependencies;
+    else if (state.mainTab === 'sd') activeDependencies = sdDependencies;
+    else if (state.mainTab === 'sql') activeDependencies = sqlDependencies;
+    else return;
+
+    const svgRect = container.getBoundingClientRect();
+
+    Object.keys(activeDependencies).forEach(target => {
+        const reqs = activeDependencies[target];
+        const targetNode = document.getElementById(`node-${target.replace(/[^a-zA-Z0-9]/g, '-')}`);
+        if(!targetNode) return;
+
+        reqs.forEach(req => {
+            const sourceNode = document.getElementById(`node-${req.replace(/[^a-zA-Z0-9]/g, '-')}`);
+            if(!sourceNode) return;
+
+            const sRect = sourceNode.getBoundingClientRect();
+            const tRect = targetNode.getBoundingClientRect();
+
+            // Center to center paths relative to Scroll Wrapper
+            const startX = sRect.left + sRect.width/2 - svgRect.left;
+            const startY = sRect.top + sRect.height/2 - svgRect.top;
+            const endX = tRect.left + tRect.width/2 - svgRect.left;
+            const endY = tRect.top + tRect.height/2 - svgRect.top;
+
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', startX); line.setAttribute('y1', startY);
+            line.setAttribute('x2', endX); line.setAttribute('y2', endY);
+            
+            const status = window.nodeStatus[target];
+            let color = 'rgba(255,255,255,0.1)';
+            if(status === 'unlocked') color = 'var(--accent-primary)';
+            if(status === 'mastered') color = 'var(--accent-success)';
+
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', '3');
+            svg.appendChild(line);
+        });
+    });
+}
+
+window.addEventListener('resize', () => { if (['dsa', 'sd', 'sql'].includes(state.mainTab) && state.viewMode === 'tree') drawTreeLines(); });
+
+window.handleNodeClick = function(patternName, status, activeDependencies) {
+    if (status === 'locked') {
+        const reqs = activeDependencies[patternName];
+        alert(`LOCKED: You must achieve 80% mastery in [${reqs.join(', ')}] to unlock this module.`);
+        return;
+    }
+    
+    let currentDb = db;
+    if (state.mainTab === 'sd') currentDb = [...sdHldDb, ...sdLldDb];
+    if (state.mainTab === 'sql') currentDb = [...sqlTopDb, ...sqlTheoryDb];
+    
+    const patternData = currentDb.find(p => p.pattern === patternName);
+    if (!patternData) return;
+
+    const isSD = state.mainTab === 'sd';
+
+    document.getElementById('topicModalTitle').textContent = `Encounter: ${patternName}`;
+    let html = `<div class="data-table-wrapper"><table style="width:100%; border-collapse: collapse;">
+            <thead><tr>
+                <th style="width: 5%;">Done</th>
+                <th>Question</th>
+                <th>Difficulty</th>
+                <th>Popularity</th>
+                <th>Prob.</th>
+                <th>Companies</th>
+                ${isSD ? '<th>YouTube</th>' : ''}
+                <th>AI</th>
+            </tr></thead><tbody>`;
+    
+    patternData.subPatterns.forEach(sub => {
+        html += `<tr style="background: var(--bg-segmented);"><td colspan="${isSD ? 8 : 7}" style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase;">${sub.name}</td></tr>`;
+        sub.questions.forEach(q => { html += createTableRow(q, false, isSD); });
+    });
+    html += `</tbody></table></div>`;
+    
+    document.getElementById('topicModalBody').innerHTML = html;
+    document.getElementById('topicModal').classList.add('active');
+};
+
+
+function render() {
+    DOM.canvas.innerHTML = '';
+    DOM.treeCanvas.innerHTML = '';
+
+    if (['dsa', 'sd', 'sql'].includes(state.mainTab) && state.viewMode === 'tree') {
+        DOM.canvas.classList.add('hidden');
+        DOM.treeCanvas.classList.remove('hidden');
+        document.getElementById('standardFilters').style.display = 'none';
+        document.getElementById('subTabsSD')?.classList.add('hidden');
+        document.getElementById('subTabsSQL')?.classList.add('hidden');
+        renderTreeView();
+    } else {
+        DOM.treeCanvas.classList.add('hidden');
+        DOM.canvas.classList.remove('hidden');
+        document.getElementById('standardFilters').style.display = 'flex';
+        
+        if (state.mainTab === 'sd') document.getElementById('subTabsSD')?.classList.remove('hidden');
+        if (state.mainTab === 'sql') document.getElementById('subTabsSQL')?.classList.remove('hidden');
+        
+        if (state.groupBy === 'pattern') renderPatternView();
+        else renderCompanyView();
+    }
+}
+
+window.switchViewMode = function(mode) {
+    state.viewMode = mode;
+    document.getElementById('viewTreeBtn').classList.toggle('active', mode === 'tree');
+    document.getElementById('viewListBtn').classList.toggle('active', mode === 'list');
+    render();
+}
+
+window.switchMainTab = function(tabName) {
+    state.mainTab = tabName;
+    document.getElementById('tabDashboard')?.classList.toggle('active', tabName === 'dashboard');
+    document.getElementById('tabDSA')?.classList.toggle('active', tabName === 'dsa');
+    document.getElementById('tabSD')?.classList.toggle('active', tabName === 'sd');
+    document.getElementById('tabSQL')?.classList.toggle('active', tabName === 'sql');
+    document.getElementById('tabBehavioral')?.classList.toggle('active', tabName === 'behavioral');
+    
+    const moduleView = document.getElementById('moduleView');
+    const dashboardView = document.getElementById('dashboardView');
+    const behavioralView = document.getElementById('behavioralView');
+    const viewModeWrapper = document.getElementById('viewModeWrapper');
+
+    if (tabName === 'dashboard') {
+        dashboardView?.classList.remove('hidden');
+        moduleView?.classList.add('hidden');
+        behavioralView?.classList.add('hidden');
+        updateDashboardStats();
+    } else if (tabName === 'behavioral') {
+        dashboardView?.classList.add('hidden');
+        moduleView?.classList.add('hidden');
+        behavioralView?.classList.remove('hidden');
+    } else {
+        dashboardView?.classList.add('hidden');
+        behavioralView?.classList.add('hidden');
+        moduleView?.classList.remove('hidden');
+        
+        const subTabsSD = document.getElementById('subTabsSD');
+        const subTabsSQL = document.getElementById('subTabsSQL');
+        
+        if (viewModeWrapper) viewModeWrapper.style.display = ['dsa', 'sd', 'sql'].includes(tabName) ? 'flex' : 'none';
+        
+        const mainTitle = document.getElementById('mainModuleTitle');
+        const mainDesc = document.getElementById('mainModuleDesc');
+        if (mainTitle && mainDesc) {
+            if (tabName === 'dsa') {
+                mainTitle.textContent = "DSA Mastery";
+                mainDesc.textContent = "Telemetry and ROI tracking for elite technical interview patterns.";
+            } else if (tabName === 'sd') {
+                mainTitle.textContent = "System Design";
+                mainDesc.textContent = "Scale applications using microservices, load balancing, and sharding.";
+            } else if (tabName === 'sql') {
+                mainTitle.textContent = "SQL & Databases";
+                mainDesc.textContent = "Deep dive into ACID properties, indexing strategies, and query tuning.";
+            }
+        }
+        
+        updateProgress();
+        render();
+    }
+};
+
+window.switchSubTab = function(subTabName) {
+    state.sdSubTab = subTabName;
+    document.getElementById('subTabHLD').classList.toggle('active', subTabName === 'hld');
+    document.getElementById('subTabLLD').classList.toggle('active', subTabName === 'lld');
+    updateProgress();
+    render();
+};
+
+window.switchSqlSubTab = function(subTabName) {
+    state.sqlSubTab = subTabName;
+    document.getElementById('subTabTopSql').classList.toggle('active', subTabName === 'topSql');
+    document.getElementById('subTabDbTheory').classList.toggle('active', subTabName === 'dbTheory');
+    updateProgress();
+    render();
+};
+
+function exportToCSV() {
+    const flatQs = sortAndFilterQuestions(getFlatQuestions());
+    if(flatQs.length === 0) return alert("No data to export.");
+    const headers = ['Question Title', 'URL', 'Pattern', 'Sub-Pattern', 'Difficulty', 'Popularity (/10)', 'Probability (%)', 'Companies', 'YouTube'];
+    const rows = flatQs.map(q => [`"${q.title}"`, `"${q.url}"`, `"${q.patternName}"`, `"${q.subPatternName}"`, `"${q.diff}"`, q.pop, q.prob, `"${q.companies.join(', ')}"`, `"${q.youtube || ''}"`]);
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "tech_interview_telemetry.csv";
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+const apiKey = "";
+async function fetchGeminiResponse(prompt, systemPrompt) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: systemPrompt }] } };
+    let retries = 0; const delays = [1000, 2000, 4000, 8000, 16000];
+    while (retries < 5) {
+        try {
+            const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+        } catch (error) {
+            if (retries === 4) return `Error fetching AI response: ${error.message}.`;
+            await new Promise(res => setTimeout(res, delays[retries]));
+            retries++;
+        }
+    }
+}
+
+function parseMarkdownToHTML(text) {
+    let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/`(.*?)`/g, '<code style="background:var(--bg-segmented);padding:2px 6px;border-radius:6px;">$1</code>').replace(/\n\n/g, '</p><p>').replace(/\n\* (.*)/g, '<br>• $1').replace(/\n- (.*)/g, '<br>• $1');
+    return `<p>${html}</p>`;
+}
+
+function openModal(title) {
+    DOM.aiModalTitle.innerHTML = title;
+    DOM.aiModalBody.innerHTML = '';
+    DOM.aiLoader.style.display = 'block';
+    DOM.aiModal.classList.add('active');
+}
+
+function closeModal() { DOM.aiModal.classList.remove('active'); }
+
+async function requestAIHint(questionTitle, patternName) {
+    openModal(`✨ Hint: ${questionTitle}`);
+    const systemPrompt = "You are an elite Staff Software Engineer mentoring a candidate. Provide a concise, conceptual hint and the time/space complexity intuition. Do NOT give the actual code. Focus on the core 'aha!' moment.";
+    const userPrompt = `Give me a conceptual hint for the interview problem '${questionTitle}' which typically falls under the '${patternName}' pattern.`;
+    const responseText = await fetchGeminiResponse(userPrompt, systemPrompt);
+    DOM.aiLoader.style.display = 'none';
+    DOM.aiModalBody.innerHTML = parseMarkdownToHTML(responseText);
+}
+
+async function generateStudyPlan() {
+    openModal(`✨ Your Custom Study Plan`);
+    const flatQs = sortAndFilterQuestions(getFlatQuestions());
+    if (flatQs.length === 0) {
+        DOM.aiLoader.style.display = 'none'; DOM.aiModalBody.innerHTML = "<p>No questions currently visible to generate a plan from. Please adjust your filters.</p>"; return;
+    }
+    const sampleQs = flatQs.slice(0, 15).map(q => q.title).join(', ');
+    const systemPrompt = "You are an expert technical interview coach. Given a list of technical topics, create a structured, highly focused 1-week study plan. Group them logically by concepts. Be extremely concise and use markdown.";
+    const userPrompt = `Create a 1-week study plan to master these specific interview topics/questions: ${sampleQs}. Provide daily goals.`;
+    const responseText = await fetchGeminiResponse(userPrompt, systemPrompt);
+    DOM.aiLoader.style.display = 'none';
+    DOM.aiModalBody.innerHTML = parseMarkdownToHTML(responseText);
+}
+
+async function generateBlindspotChallenge() {
+    const stats = calculatePatternMastery();
+    let strong = [];
+    let weak = [];
+
+    // Only look at DSA patterns for algorithmic blindspots
+    const dsaPatterns = db.map(p => p.pattern);
+
+    for (const [pattern, data] of Object.entries(stats)) {
+        if (!dsaPatterns.includes(pattern)) continue; // Filter to DSA only
+        if (data.total === 0) continue; 
+        if (data.pct >= 50) strong.push({pattern, pct: data.pct});
+        else weak.push({pattern, pct: data.pct});
+    }
+
+    strong.sort((a, b) => b.pct - a.pct);
+    weak.sort((a, b) => a.pct - b.pct);
+
+    if (strong.length === 0) {
+        alert("Build up some strengths first! Achieve at least 50% mastery in a DSA pattern so the AI can build a hybrid challenge based on your strong foundational skills.");
+        return;
+    }
+    if (weak.length === 0) {
+        alert("Incredible! You have no weak algorithmic blindspots (everything is >50%). Keep up the elite work!");
+        return;
+    }
+
+    const strongPattern = strong[0].pattern;
+    // Pick a random weak pattern from the bottom 3 to keep challenges varied
+    const weakCandidates = weak.slice(0, 3);
+    const weakPattern = weakCandidates[Math.floor(Math.random() * weakCandidates.length)].pattern;
+
+    openModal(`🎯 Blindspot Morpher: ${strongPattern} + ${weakPattern}`);
+
+    const systemPrompt = "You are an elite FAANG interviewer known for testing candidates' true fundamental understanding, not just their ability to memorize standard questions. Your task is to generate a 'Hybrid Blindspot Challenge'.";
+
+    const userPrompt = `The candidate is strong at '${strongPattern}' but currently weak at '${weakPattern}'. 
+    Please invent a bespoke, hybrid technical interview question that morphs a standard '${strongPattern}' problem so that it absolutely requires using '${weakPattern}' to solve optimally.
+    
+    Structure your response clearly:
+    **🎯 Problem Title**: Give it a creative name.
+    
+    **The Setup**: Explain the problem scenario.
+    
+    **Why this tests your blindspot**: Explain why they can't just use standard ${strongPattern} techniques and MUST incorporate ${weakPattern}.
+    
+    **Constraints**: Standard realistic interview constraints.
+    
+    **Conceptual Hint**: A small nudge on how to combine the two concepts. (DO NOT output the actual code solution).`;
+
+    const responseText = await fetchGeminiResponse(userPrompt, systemPrompt);
+    
+    DOM.aiLoader.style.display = 'none';
+    DOM.aiModalBody.innerHTML = parseMarkdownToHTML(responseText);
+}
+
+async function generateSTARStory() {
+    const question = document.getElementById('starQuestion').value.trim();
+    const framework = document.getElementById('starFramework').value;
+    const notes = document.getElementById('starNotes').value.trim();
+
+    if (!notes) {
+        alert("Please provide some raw notes or bullet points about your project/experience.");
+        return;
+    }
+
+    const outContent = document.getElementById('starOutputContent');
+    const loader = document.getElementById('starLoader');
+    
+    outContent.innerHTML = '';
+    loader.style.display = 'block';
+
+    const systemPrompt = `You are an elite FAANG hiring manager and interview coach. The candidate is providing raw notes for a behavioral interview question. 
+    Your task:
+    1. Rewrite their notes into a highly polished, compelling story using the precise S.T.A.R. framework (Situation, Task, Action, Result). Use clear markdown headings for S, T, A, and R.
+    2. Emphasize impact, measurable metrics, and leadership.
+    3. Provide an "Evaluation" section at the end rating the story against the requested framework (${framework}). Highlight what is strong and what could be improved.`;
+
+    const userPrompt = `Question I am preparing for: "${question || 'General behavioral prompt'}"\nTarget Framework: ${framework}\n\nMy Raw Notes:\n${notes}`;
+
+    const responseText = await fetchGeminiResponse(userPrompt, systemPrompt);
+    
+    loader.style.display = 'none';
+    outContent.innerHTML = parseMarkdownToHTML(responseText);
+    
+    const elements = outContent.querySelectorAll('p, h3, h4, ul');
+    elements.forEach(el => el.style.marginBottom = '1em');
+    const lists = outContent.querySelectorAll('ul, ol');
+    lists.forEach(l => l.style.marginLeft = '1.5em');
+}
+
+async function generatePreFlightBrief() {
+    const company = document.getElementById('preFlightCompany').value;
+    const loader = document.getElementById('preFlightLoader');
+    const output = document.getElementById('preFlightOutput');
+    const printBtn = document.getElementById('printBriefBtn');
+
+    output.style.display = 'none';
+    printBtn.style.display = 'none';
+    loader.style.display = 'block';
+
+    // Calculate user's specific readiness for this company to give context to the AI
+    const allQs = [];
+    [db, sdHldDb, sdLldDb, sqlTopDb, sqlTheoryDb].forEach(database => {
+        database.forEach(pattern => {
+            pattern.subPatterns.forEach(sub => { allQs.push({...sub, patternName: pattern.pattern}); });
+        });
+    });
+
+    const companyQs = allQs.filter(q => q.companies && q.companies.includes(company));
+    let completedCount = 0;
+    let completedPatterns = new Set();
+    companyQs.forEach(q => {
+        if (state.completed.has(q.id)) {
+            completedCount++;
+            completedPatterns.add(q.patternName);
+        }
+    });
+
+    const readinessPct = companyQs.length === 0 ? 0 : Math.round((completedCount / companyQs.length) * 100);
+    const masteredStr = [...completedPatterns].join(', ') || 'None yet';
+
+    const systemPrompt = `You are an elite FAANG technical recruiter and executive career coach. Generate a highly actionable 'Pre-Flight Brief' for a candidate interviewing at the specified company in exactly 48 hours. Format with clean markdown using clear headings (h3/h4) and bullet points. DO NOT use asterisks for bolding within headings, use actual markdown headings.`;
+
+    const userPrompt = `Target Company: ${company}\nCandidate Stat Readiness for this specific company: ${readinessPct}%\nCore patterns they have practiced: ${masteredStr}\n\nPlease generate a customized, 2-page brief including:\n\n1. **The Tactical Review**: Top 3 specific algorithmic and system design patterns they MUST cram in the next 48 hours based on what ${company} heavily indexes on right now.\n2. **The Behavioral Matrix**: Top 2 behavioral STAR story archetypes they need to have perfectly prepared, explicitly aligned with ${company}'s core values (e.g., LPs, Googliness).\n3. **The Reverse Interview**: 3 highly specific, impressive, engineering-level clarifying questions the candidate should ask their interviewer at the end of the rounds to stand out as a senior-tier candidate.`;
+
+    const responseText = await fetchGeminiResponse(userPrompt, systemPrompt);
+    
+    loader.style.display = 'none';
+    output.innerHTML = parseMarkdownToHTML(responseText);
+    output.style.display = 'block';
+    printBtn.style.display = 'flex';
+}
+
+function printPreFlightBrief() {
+    const content = document.getElementById('preFlightOutput').innerHTML;
+    const company = document.getElementById('preFlightCompany').value;
+    
+    const printWindow = window.open('', '', 'height=800,width=800');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>${company} Pre-Flight Brief</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; padding: 40px; max-width: 800px; margin: 0 auto; }
+                    h1 { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 30px; }
+                    h3 { color: #2c3e50; margin-top: 30px; }
+                    h4 { color: #34495e; }
+                    ul { margin-left: 20px; }
+                    li { margin-bottom: 8px; }
+                    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+                    @media print { body { padding: 0; } }
+                </style>
+            </head>
+            <body>
+                <h1>🛫 ${company} Pre-Flight Brief</h1>
+                ${content}
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // Slight delay to ensure content renders before print dialog
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 500);
+}
+
+function init() {
+    let searchTimeout;
+    DOM.searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => { state.searchQuery = e.target.value.trim(); render(); }, 300);
+    });
+
+    DOM.groupBySelect.addEventListener('change', (e) => { state.groupBy = e.target.value; render(); });
+    DOM.sortBySelect.addEventListener('change', (e) => { state.sortBy = e.target.value; render(); });
+
+    DOM.exportBtn.addEventListener('click', exportToCSV);
+    DOM.aiStudyPlanBtn.addEventListener('click', generateStudyPlan);
+    document.getElementById('aiBlindspotBtn')?.addEventListener('click', generateBlindspotChallenge);
+    document.getElementById('generateStarBtn')?.addEventListener('click', generateSTARStory);
+
+    // Pre-Flight Brief Events
+    const preFlightModal = document.getElementById('preFlightModal');
+    document.getElementById('openPreFlightBtn')?.addEventListener('click', () => preFlightModal.classList.add('active'));
+    document.getElementById('closePreFlightModalBtn')?.addEventListener('click', () => preFlightModal.classList.remove('active'));
+    preFlightModal?.addEventListener('click', (e) => { if (e.target === preFlightModal) preFlightModal.classList.remove('active'); });
+    document.getElementById('generateBriefBtn')?.addEventListener('click', generatePreFlightBrief);
+    document.getElementById('printBriefBtn')?.addEventListener('click', printPreFlightBrief);
+
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    let currentTheme = localStorage.getItem('theme') || 'dark';
+    if (currentTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        themeToggleBtn.innerHTML = '🌙';
+    }
+    themeToggleBtn.addEventListener('click', () => {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        themeToggleBtn.innerHTML = currentTheme === 'dark' ? '☀️' : '🌙';
+        try { localStorage.setItem('theme', currentTheme); } catch(e) {}
+    });
+
+    const settingsModal = document.getElementById('settingsModal');
+    document.getElementById('settingsBtn').addEventListener('click', () => settingsModal.classList.add('active'));
+    document.getElementById('closeSettingsBtn').addEventListener('click', () => settingsModal.classList.remove('active'));
+    settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.classList.remove('active'); });
+
+    document.getElementById('exportProgressBtn').addEventListener('click', () => {
+        const data = JSON.stringify([...state.completed]);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'dsa_dashboard_backup.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+
+    document.getElementById('importProgressBtn').addEventListener('click', () => document.getElementById('importProgressFile').click());
+    
+    document.getElementById('importProgressFile').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const importedIds = JSON.parse(event.target.result);
+                if (Array.isArray(importedIds)) {
+                    importedIds.forEach(id => state.completed.add(id));
+                    localStorage.setItem('dsa_completed', JSON.stringify([...state.completed]));
+                    updateDashboardStats();
+                    updateProgress();
+                    render();
+                    settingsModal.classList.remove('active');
+                    alert('Progress successfully restored!');
+                }
+            } catch (err) {
+                alert('Invalid backup file.');
+            }
+            e.target.value = ''; // Reset file input
+        };
+        reader.readAsText(file);
+    });
+
+    document.getElementById('resetProgressBtn').addEventListener('click', () => {
+        if (confirm('Are you sure you want to completely reset all your progress? This cannot be undone.')) {
+            state.completed.clear();
+            localStorage.removeItem('dsa_completed');
+            updateDashboardStats();
+            updateProgress();
+            render();
+            settingsModal.classList.remove('active');
+        }
+    });
+
+    // AI Modal Events
+    DOM.closeModalBtn.addEventListener('click', closeModal);
+    DOM.aiModal.addEventListener('click', (e) => { if (e.target === DOM.aiModal) closeModal(); });
+
+    // Topic Modal Events
+    const topicModal = document.getElementById('topicModal');
+    document.getElementById('closeTopicModalBtn').addEventListener('click', () => topicModal.classList.remove('active'));
+    topicModal.addEventListener('click', (e) => { if (e.target === topicModal) topicModal.classList.remove('active'); });
+
+    updateDashboardStats();
+    updateProgress();
+    
+    if(state.mainTab === 'dsa') state.viewMode = 'tree';
+    render();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
